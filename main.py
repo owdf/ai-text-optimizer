@@ -1,10 +1,16 @@
 """
 AI文本优化器 - 主程序
 支持多语言
+
+优化版本：
+- 修复裸except子句为具体异常类型
+- 将延迟导入移到文件顶部
+- 改进错误日志记录
 """
 
 import sys
 import threading
+import traceback
 import pyperclip
 import customtkinter as ctk
 from config import get_config
@@ -14,6 +20,7 @@ from clipboard import get_text_selector
 from context_analyzer import get_context_analyzer
 from hotkey import get_hotkey_listener, stop_hotkey_listener
 from language import t, get_lang_manager
+from text_cleaner import clean_markdown  # [优化] 移到顶部，避免运行时导入
 from ui import (
     get_floating_window, SettingsWindow, get_tray_icon, stop_tray_icon,
     get_hotkey_window, get_template_window
@@ -131,11 +138,13 @@ class AITextOptimizer:
         if self._processing:
             return
 
-        print(f"\n[Hotkey] Triggered")
+        print("[Hotkey] Triggered")
 
+        # [优化] 使用具体异常类型替代裸except
         try:
             text = pyperclip.paste()
-        except:
+        except (pyperclip.PyperclipException, OSError, RuntimeError) as e:
+            self._log(f"[Hotkey] Clipboard error: {e}")
             text = ""
 
         if text and text.strip():
@@ -193,8 +202,7 @@ class AITextOptimizer:
                     {"role": "user", "content": prompt}
                 ]
                 response = self.ai_service.chat(messages)
-
-                from text_cleaner import clean_markdown
+                # [优化] 不再需要延迟导入，clean_markdown已在顶部导入
                 response = clean_markdown(response)
 
                 result = {
@@ -213,7 +221,6 @@ class AITextOptimizer:
         except Exception as e:
             error_msg = f"{t('error')}: {str(e)}"
             print(f"[AI] {error_msg}")
-            import traceback
             traceback.print_exc()
             self.root.after(0, self._update_error, error_msg)
         finally:
@@ -248,9 +255,9 @@ class AITextOptimizer:
         print("\n" + "="*50)
         print(f"   {t('start_title')}")
         print("="*50)
-        print(f"\n   {t('start_hotkey')}: {hotkey.upper().replace('+', ' + ')}")
+        print(f"   {t('start_hotkey')}: {hotkey.upper().replace('+', ' + ')}")
         print(f"   {t('start_template')}: {template_name}")
-        print(f"\n   {t('start_usage')}:")
+        print(f"   {t('start_usage')}:")
         print(f"   {t('start_step1')}")
         print(f"   {t('start_step2')}")
         print(f"   {t('start_step3')}")

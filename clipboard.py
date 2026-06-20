@@ -1,5 +1,9 @@
 """
 剪贴板操作模块 - 改进版
+
+优化版本：
+- 修复所有裸except子句为具体异常类型
+- 添加更详细的错误日志
 """
 
 import time
@@ -69,7 +73,9 @@ class ClipboardManager:
         try:
             content = pyperclip.paste()
             return content if content and content.strip() else None
-        except:
+        # [优化] 替换裸except为具体异常类型
+        except (pyperclip.PyperclipException, OSError, RuntimeError) as e:
+            print(f"[Clipboard] get_clipboard_text error: {type(e).__name__}: {e}")
             return None
 
     def _press_ctrl_c(self):
@@ -97,14 +103,17 @@ class ClipboardManager:
         try:
             content = pyperclip.paste()
             return content if content else ""
-        except:
+        # [优化] 替换裸except为具体异常类型
+        except (pyperclip.PyperclipException, OSError, RuntimeError):
             return ""
 
     def set_content(self, text: str) -> bool:
         try:
             pyperclip.copy(text)
             return True
-        except:
+        # [优化] 替换裸except为具体异常类型
+        except (pyperclip.PyperclipException, OSError, RuntimeError) as e:
+            print(f"[Clipboard] set_content error: {type(e).__name__}: {e}")
             return False
 
 

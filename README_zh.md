@@ -1,217 +1,163 @@
 [English](README.md)
 
-# AI文本优化器
+# AI Text Optimizer
 
-Windows桌面轻量工具，选中文本后发送给AI进行分析和优化。支持多种AI服务、智能提示词模板、中英文界面切换。
+**选中文字 → 按一下快捷键 → AI帮你改好，直接粘贴回去**
 
-## 功能特点
+写邮件、改代码、润色文案，不用切换窗口，不用打开网页。
 
-- 全局热键触发
-- 剪贴板监控模式
-- 自动检测来源应用
-- 智能提示词模板
-- 多AI服务支持
-- 自定义热键（按下即设）
-- 系统托盘后台运行
+---
 
-## 安装
+## 一句话说清
 
-### 环境要求
+**不用打开任何网页/APP，选中文字按一下就完事。**
 
-- Windows 10/11
-- Python 3.8+
+跟浏览器插件、ChatGPT网页版的核心区别：**系统级快捷键 + 托盘后台运行 + 多AI支持**。
 
-### 安装依赖
+## 效果演示
+
+<!-- 录一个15秒GIF放这里：选中文字 → 按Ctrl+Shift+Q → 结果弹出 -->
+<!-- 推荐用 ScreenToGif 录制，文件放项目根目录 -->
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  任意应用中选中文字                                        │
+│         ↓                                               │
+│  按 Ctrl+Shift+Q                                        │
+│         ↓                                               │
+│  AI结果窗口弹出，直接粘贴回去                               │
+└─────────────────────────────────────────────────────────┘
+```
+
+> 实际效果比这好看10倍 —— 录个GIF替换这段
+
+## 为什么用这个？
+
+| 场景 | 痛点 | 这个工具怎么解决 |
+|------|------|-----------------|
+| 写英文邮件 | 不确定语法对不对 | 选中 → 一键润色 → 粘贴回去 |
+| 代码报错 | 复制粘贴到ChatGPT太麻烦 | 选中报错 → 按快捷键 → 直接看修复方案 |
+| 看英文文档 | 要切窗口翻译 | 选中 → 按快捷键 → 翻译结果就地弹出 |
+| 写文案 | 反复改措辞 | 选中 → 按快捷键 → AI帮你改好 |
+
+## 核心功能
+
+- **系统级快捷键** — 任意应用中都能用，不用切窗口
+- **托盘后台运行** — 不占任务栏，安静待命
+- **多AI支持** — OpenAI、DeepSeek、Claude、通义千问、本地Ollama...
+- **智能模板** — 内置代码修复、翻译、总结等10+场景模板
+- **中英双语** — 界面支持中文/English切换
+
+## 3分钟上手
+
+### 1. 安装
 
 ```bash
+# 克隆项目
+git clone https://github.com/yourusername/ai-text-optimizer.git
+cd ai-text-optimizer
+
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-### 依赖列表
+### 2. 配置AI服务
 
-| 包名 | 用途 |
-|------|------|
-| customtkinter | GUI框架 |
-| pynput | 全局热键 |
-| pystray | 系统托盘 |
-| requests | HTTP请求 |
-| pyperclip | 剪贴板 |
-| Pillow | 图像处理 |
+```bash
+# 复制示例配置
+cp config.example.json config.json
 
-## 使用方法
+# 编辑 config.json，填入你的API Key
+```
 
-### 启动
+或者启动后右键托盘图标 → **设置** → 选择AI服务 → 填入API Key → 测试连接 → 保存
+
+### 3. 启动
 
 ```bash
 python main.py
 ```
 
-### 操作步骤
+右下角出现托盘图标，开始使用！
 
-1. 在任意应用中选中文本
-2. 按 Ctrl+C 复制
-3. 按热键（默认 Ctrl+Shift+Q）
-4. 查看AI分析结果
+### 4. 使用
 
-### 托盘菜单
+1. **选中任意文字**
+2. **按 `Ctrl+Shift+Q`**（可自定义）
+3. **AI结果窗口弹出，直接粘贴回去**
 
-右键点击系统托盘图标：
-
-- 热键显示 - 点击打开热键设置
-- 热键开关
-- 提示词模板 - 打开模板管理
-- 设置 - 打开设置
-- 语言 - 切换中英文
-- 退出
-
-## 热键设置
+## 自定义热键
 
 支持"按下即设"模式：
 
-1. 点击"开始监听"
-2. 按下想要的热键组合
-3. 自动保存
+1. 右键托盘图标 → 热键显示
+2. 点击"开始监听"
+3. 按下想要的热键组合（如 `Ctrl+Q`、`Alt+Q`）
+4. 自动保存
 
 按ESC取消。
 
-提供预设按钮：
-- Ctrl+Q
-- Ctrl+Shift+Q
-- Alt+Q
+## 支持的AI服务
 
-## 提示词模板
+| 服务 | 说明 |
+|------|------|
+| OpenAI | GPT系列 |
+| DeepSeek | DeepSeek系列 |
+| 智谱AI | GLM系列 |
+| 月之暗面 | Kimi系列 |
+| 通义千问 | Qwen系列 |
+| Claude | Claude系列 |
+| Ollama | 本地部署，免费使用 |
 
-### 内置模板
+> 任何兼容OpenAI API格式的服务都能用，支持最新模型
 
-| 模板 | 分类 | 描述 |
-|------|------|------|
-| [Bug] 代码修复 | 代码 | 分析错误并提供修复方案 |
-| [Code] 代码优化 | 代码 | 优化性能和可读性 |
-| [Code] 代码解释 | 代码 | 解释代码功能 |
-| [Code] 代码审查 | 代码 | 代码审查并提供建议 |
-| [Bug] 调试追踪 | 调试 | 调试并追踪问题 |
-| [Bug] 堆栈分析 | 调试 | 分析堆栈跟踪 |
-| [Config] 配置修复 | 配置 | 修复配置问题 |
-| [Log] 日志分析 | 日志 | 分析日志并定位问题 |
-| [General] 翻译 | 通用 | 翻译文本 |
-| [General] 总结 | 通用 | 总结内容要点 |
+> 任何兼容OpenAI API格式的服务都能用
 
-### 自定义模板
+## 自定义模板
 
-1. 打开模板管理器
-2. 点击"添加"
-3. 填写字段：
-   - 标识：唯一标识符
-   - 名称：显示名称
-   - 描述
-   - 分类
-   - 提示词内容
-4. 保存
+右键托盘图标 → 提示词模板 → 添加
 
-提示词可用变量：
-- `{text}` - 用户选中的文本
-- `{source}` - 来源应用
-- `{language}` - 编程语言
-
-## AI服务配置
-
-### 支持的服务
-
-| 服务 | Base URL | 模型 |
-|------|----------|------|
-| OpenAI | https://api.openai.com/v1 | gpt-4, gpt-3.5-turbo |
-| DeepSeek | https://api.deepseek.com/v1 | deepseek-chat |
-| 智谱AI | https://open.bigmodel.cn/api/paas/v4 | glm-4 |
-| 月之暗面 | https://api.moonshot.cn/v1 | moonshot-v1-8k |
-| 通义千问 | https://dashscope.aliyuncs.com/compatible-mode/v1 | qwen-turbo |
-| Ollama（本地） | http://localhost:11434/v1 | llama3 |
-| Claude | https://api.anthropic.com/v1 | claude-3-sonnet |
-
-### 设置步骤
-
-1. 右键托盘图标 -> 设置
-2. 选择预设服务或自定义
-3. 输入API密钥
-4. 点击"测试连接"
-5. 保存
-
-## 配置文件
-
-`config.json` - 主配置文件
-
-```json
-{
-  "ai_service": {
-    "provider": "openai_compatible",
-    "api_key": "your-api-key",
-    "base_url": "https://api.openai.com/v1",
-    "model": "gpt-4"
-  },
-  "hotkey": {
-    "trigger": "ctrl+shift+q",
-    "enabled": true
-  },
-  "clipboard": {
-    "wait_mode_timeout": 15,
-    "check_interval": 0.2
-  },
-  "general": {
-    "language": "auto",
-    "enable_logging": false
-  }
-}
-```
+可用变量：
+- `{text}` — 选中的文本
+- `{source}` — 来源应用
+- `{language}` — 编程语言
 
 ## 项目结构
 
 ```
 ai-text-optimizer/
-|-- main.py                  # 主程序入口
-|-- config.py                # 配置管理
-|-- config.json              # 配置文件（已gitignore）
-|-- config.example.json      # 示例配置
-|-- ai_service.py            # AI服务适配层
-|-- prompt_templates.py      # 提示词模板管理
-|-- context_analyzer.py      # 上下文分析器
-|-- clipboard.py             # 剪贴板操作
-|-- hotkey.py                # 热键监听
-|-- text_cleaner.py          # Markdown清理
-|-- language.py              # 多语言支持
-|-- icons.py                 # 图标生成
-|-- requirements.txt         # 依赖列表
-|-- README.md                # 文档（英文）
-|-- README_zh.md             # 文档（中文）
-|-- ui/
-|   |-- __init__.py
-|   |-- floating_window.py   # 结果窗口
-|   |-- settings_window.py   # 设置窗口
-|   |-- hotkey_window.py     # 热键设置窗口
-|   |-- template_window.py   # 模板管理窗口
-|   |-- tray.py              # 系统托盘
+├── main.py                  # 主程序入口
+├── config.py                # 配置管理
+├── ai_service.py            # AI服务适配层
+├── prompt_templates.py      # 提示词模板管理
+├── context_analyzer.py      # 上下文分析器
+├── clipboard.py             # 剪贴板操作
+├── hotkey.py                # 热键监听
+├── text_cleaner.py          # Markdown清理
+├── language.py              # 多语言支持
+└── ui/
+    ├── floating_window.py   # 结果窗口
+    ├── settings_window.py   # 设置窗口
+    ├── hotkey_window.py     # 热键设置
+    ├── template_window.py   # 模板管理
+    └── tray.py              # 系统托盘
 ```
 
 ## 常见问题
 
-### Q: 热键不工作？
+**Q: 热键不工作？**
+检查是否有其他应用占用了相同热键。尝试通过托盘菜单设置新热键。
 
-A: 检查是否有其他应用占用了相同热键。尝试通过托盘菜单设置新热键。
+**Q: AI返回Markdown格式？**
+程序会自动清理Markdown格式。如果仍然出现，检查 `text_cleaner.py` 是否正常工作。
 
-### Q: AI返回Markdown格式？
-
-A: 程序会自动清理Markdown格式。如果仍然出现，检查text_cleaner.py是否正常工作。
-
-### Q: 如何切换语言？
-
-A: 右键托盘图标 -> 语言 -> 选择中文或English。
-
-### Q: 如何添加自定义提示词模板？
-
-A: 右键托盘图标 -> 提示词模板 -> 点击"添加" -> 填写并保存。
-
-### Q: 支持哪些AI服务？
-
-A: 任何兼容OpenAI API格式的服务。见上方服务表格。
+**Q: 支持哪些AI服务？**
+任何兼容OpenAI API格式的服务都支持。
 
 ## 许可证
 
 MIT License
+
+---
+
+如果觉得有用，点个 star 支持一下！

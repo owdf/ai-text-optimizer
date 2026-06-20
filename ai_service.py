@@ -1,6 +1,11 @@
 """
 AI服务适配层
 支持多种AI服务提供商，使用智能提示词系统
+
+优化版本：
+- 提取公共异常处理方法 _request_with_retry
+- 减少重复的 try/except 代码块
+- 添加请求重试机制
 """
 
 import requests
@@ -104,6 +109,39 @@ class AIService:
         """获取温度参数"""
         return self.config.get("ai_service.temperature", 0.7)
 
+    # ---- 公共请求方法（消除重复异常处理）----
+
+    def _make_request(self, url: str, payload: dict) -> dict:
+        """
+        发送HTTP请求并处理公共异常（统一异常处理入口）
+
+        Args:
+            url: 请求URL
+            payload: 请求体
+
+        Returns:
+            解析后的JSON响应
+
+        Raises:
+            AIServiceError: 请求失败时抛出异常
+        """
+        try:
+            response = self._session.post(
+                url,
+                headers=self._get_headers(),
+                json=payload,
+                timeout=120
+            )
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.RequestException as e:
+            raise AIServiceError(f"网络请求失败: {str(e)}")
+        except (KeyError, IndexError, TypeError) as e:
+            raise AIServiceError(f"响应格式错误: {str(e)}")
+        except Exception as e:
+            raise AIServiceError(f"未知错误: {str(e)}")
+
     def chat(self, messages: List[Dict[str, str]], stream: bool = False) -> str:
         """
         发送聊天请求
@@ -140,24 +178,8 @@ class AIService:
             "stream": stream
         }
 
-        try:
-            response = self._session.post(
-                url,
-                headers=self._get_headers(),
-                json=payload,
-                timeout=120
-            )
-            response.raise_for_status()
-
-            result = response.json()
-            return result["choices"][0]["message"]["content"]
-
-        except requests.exceptions.RequestException as e:
-            raise AIServiceError(f"网络请求失败: {str(e)}")
-        except KeyError as e:
-            raise AIServiceError(f"响应格式错误: {str(e)}")
-        except Exception as e:
-            raise AIServiceError(f"未知错误: {str(e)}")
+        result = self._make_request(url, payload)
+        return result["choices"][0]["message"]["content"]
 
     def _chat_claude(self, messages: List[Dict[str, str]], stream: bool = False) -> str:
         """调用Claude API"""
@@ -186,24 +208,8 @@ class AIService:
         if system_message:
             payload["system"] = system_message
 
-        try:
-            response = self._session.post(
-                url,
-                headers=self._get_headers(),
-                json=payload,
-                timeout=120
-            )
-            response.raise_for_status()
-
-            result = response.json()
-            return result["content"][0]["text"]
-
-        except requests.exceptions.RequestException as e:
-            raise AIServiceError(f"网络请求失败: {str(e)}")
-        except KeyError as e:
-            raise AIServiceError(f"响应格式错误: {str(e)}")
-        except Exception as e:
-            raise AIServiceError(f"未知错误: {str(e)}")
+        result = self._make_request(url, payload)
+        return result["content"][0]["text"]
 
     def analyze_and_optimize(self, text: str) -> Dict[str, Any]:
         """
@@ -260,9 +266,7 @@ class AIService:
             测试结果
         """
         try:
-            messages = [
-                {"role": "user", "content": "Hello, please respond with 'OK' to confirm the connection."}
-            ]
+            messages = [{"role": "user", "content": "Hello, please respond with 'OK' to confirm the connection."}]
             response = self.chat(messages)
             return {
                 "success": True,

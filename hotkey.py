@@ -1,5 +1,9 @@
 """
 全局热键监听模块 - 使用虚拟键码检测
+
+优化版本：
+- 缓存热键配置（避免每次按键都读配置文件）
+- 配置变更时自动刷新缓存
 """
 
 import threading
@@ -14,7 +18,7 @@ VK_Q = 0x51
 
 
 class HotkeyListener:
-    """全局热键监听器"""
+    """全局热键监听器（带配置缓存）"""
 
     def __init__(self, callback: Callable[[], None]):
         """初始化"""
@@ -27,6 +31,23 @@ class HotkeyListener:
         self._q = False
         self._running = False
         self._triggered = False
+
+        # [优化] 缓存热键配置，避免每次按键读文件
+        self._cached_hotkey: Optional[str] = None
+        self._cached_parts: dict = {}
+        self._refresh_hotkey_cache()
+
+    def _refresh_hotkey_cache(self) -> None:
+        """刷新热键配置缓存"""
+        hotkey = self.config.get_hotkey().lower().strip()
+        if hotkey != self._cached_hotkey:
+            self._cached_hotkey = hotkey
+            self._cached_parts = {
+                'need_ctrl': 'ctrl' in hotkey,
+                'need_shift': 'shift' in hotkey,
+                'need_alt': 'alt' in hotkey,
+                'need_q': 'q' in hotkey,
+            }
 
     def _on_press(self, key):
         """按键按下"""
@@ -46,27 +67,18 @@ class HotkeyListener:
         elif hasattr(key, 'char') and key.char and key.char.lower() == 'q':
             self._q = True
 
-        # 获取配置的热键
-        hotkey = self.config.get_hotkey().lower().strip()
-        need_ctrl = 'ctrl' in hotkey
-        need_shift = 'shift' in hotkey
-        need_alt = 'alt' in hotkey
-        need_q = 'q' in hotkey
-
-        # 检查是否匹配
-        match = True
-        if need_ctrl and not self._ctrl:
-            match = False
-        if need_shift and not self._shift:
-            match = False
-        if need_alt and not self._alt:
-            match = False
-        if need_q and not self._q:
-            match = False
+        # [优化] 使用缓存的热键配置，不再每次读文件
+        parts = self._cached_parts
+        match = (
+            (not parts['need_ctrl'] or self._ctrl) and
+            (not parts['need_shift'] or self._shift) and
+            (not parts['need_alt'] or self._alt) and
+            (not parts['need_q'] or self._q)
+        )
 
         if match and not self._triggered:
             self._triggered = True
-            print(f"[热键] 组合键触发！")
+            print("[热键] 组合键触发！")
             # 重置状态
             self._ctrl = False
             self._shift = False
@@ -118,9 +130,11 @@ class HotkeyListener:
         print("[热键] 监听已停止")
 
     def update_hotkey(self, new_hotkey: str):
-        """更新热键"""
+        """更新热键并刷新缓存"""
         self.config.set_hotkey(new_hotkey)
         self.config.save()
+        # [优化] 刷新缓存
+        self._refresh_hotkey_cache()
         if self._running:
             self.stop()
             self.start()
