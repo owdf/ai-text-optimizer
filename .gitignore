@@ -37,6 +37,17 @@ ENV/
 *.swp
 *.swo
 
+# Runtime artifacts
+@AutomationLog.txt
+
+# Logs
+logs/
+
+# Build output
+dist/
+build/
+*.spec
+
 # OS
 .DS_Store
 Thumbs.db

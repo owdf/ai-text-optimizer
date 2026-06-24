@@ -7,19 +7,32 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
+from logger import get_logger
+
+logger = get_logger("config")
+
+
+def _resolve_config_path(filename: str = "config.json") -> Path:
+    """解析配置文件路径（优先CWD以保持向后兼容，否则使用脚本目录）"""
+    cwd_path = Path.cwd() / filename
+    if cwd_path.exists():
+        return cwd_path
+    # 回退到脚本所在目录
+    script_dir = Path(__file__).parent
+    return script_dir / filename
 
 
 class Config:
     """配置管理类"""
-    
-    def __init__(self, config_path: str = "config.json"):
+
+    def __init__(self, config_path: str = None):
         """
         初始化配置管理器
-        
+
         Args:
-            config_path: 配置文件路径
+            config_path: 配置文件路径，为None时自动解析
         """
-        self.config_path = Path(config_path)
+        self.config_path = Path(config_path) if config_path else _resolve_config_path()
         self.config: Dict[str, Any] = {}
         self.load()
     
@@ -33,10 +46,10 @@ class Config:
                 # 如果配置文件不存在，创建默认配置
                 self._create_default_config()
         except json.JSONDecodeError as e:
-            print(f"配置文件格式错误: {e}")
+            logger.error(f"配置文件格式错误: {e}")
             self._create_default_config()
         except Exception as e:
-            print(f"加载配置文件失败: {e}")
+            logger.error(f"加载配置文件失败: {e}")
             self._create_default_config()
     
     def _create_default_config(self) -> None:
@@ -94,7 +107,7 @@ class Config:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
             return True
         except Exception as e:
-            print(f"保存配置文件失败: {e}")
+            logger.error(f"保存配置文件失败: {e}")
             return False
     
     def get(self, key_path: str, default: Any = None) -> Any:
@@ -155,7 +168,7 @@ class Config:
     
     def get_hotkey(self) -> str:
         """获取热键配置"""
-        return self.get("hotkey.trigger", "ctrl+shift+a")
+        return self.get("hotkey.trigger", "ctrl+shift+q")
     
     def set_hotkey(self, hotkey: str) -> None:
         """设置热键"""

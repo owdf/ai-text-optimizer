@@ -6,6 +6,19 @@
 import json
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from logger import get_logger
+
+logger = get_logger("templates")
+
+
+def _resolve_templates_path(filename: str = "prompt_templates.json") -> Path:
+    """解析模板文件路径（优先CWD以保持向后兼容，否则使用脚本目录）"""
+    cwd_path = Path.cwd() / filename
+    if cwd_path.exists():
+        return cwd_path
+    # 回退到脚本所在目录
+    script_dir = Path(__file__).parent
+    return script_dir / filename
 
 
 class PromptTemplate:
@@ -313,8 +326,8 @@ class PromptTemplateManager:
         ),
     }
 
-    def __init__(self, templates_path: str = "prompt_templates.json"):
-        self.templates_path = Path(templates_path)
+    def __init__(self, templates_path: str = None):
+        self.templates_path = Path(templates_path) if templates_path else _resolve_templates_path()
         self.templates: Dict[str, PromptTemplate] = {}
 
         # 加载内置模板
@@ -331,7 +344,7 @@ class PromptTemplateManager:
                     for key, template_data in data.items():
                         self.templates[key] = PromptTemplate.from_dict(template_data)
         except Exception as e:
-            print(f"[Templates] Load error: {e}")
+            logger.error(f"加载模板失败: {e}")
 
     def save_custom_templates(self):
         try:
@@ -343,7 +356,7 @@ class PromptTemplateManager:
             with open(self.templates_path, 'w', encoding='utf-8') as f:
                 json.dump(custom_templates, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"[Templates] Save error: {e}")
+            logger.error(f"保存模板失败: {e}")
 
     def get_template(self, key: str) -> Optional[PromptTemplate]:
         return self.templates.get(key)
@@ -372,14 +385,14 @@ class PromptTemplateManager:
 
     def add_template(self, key: str, name: str, description: str, prompt: str, category: str = "custom") -> bool:
         """添加模板"""
-        print(f"[Templates] Adding: key={key}, name={name}")
+        logger.info(f"添加模板: key={key}, name={name}")
 
         if key in self.BUILTIN_TEMPLATES:
-            print(f"[Templates] Cannot override builtin: {key}")
+            logger.warning(f"不能覆盖内置模板: {key}")
             return False
 
         if key in self.templates:
-            print(f"[Templates] Already exists: {key}")
+            logger.warning(f"模板已存在: {key}")
             return False
 
         self.templates[key] = PromptTemplate(
@@ -390,7 +403,7 @@ class PromptTemplateManager:
         )
 
         self.save_custom_templates()
-        print(f"[Templates] Added: {key}")
+        logger.info(f"模板已添加: {key}")
         return True
 
     def update_template(self, key: str, name: str = None, description: str = None, prompt: str = None) -> bool:
@@ -419,15 +432,37 @@ class PromptTemplateManager:
         return False
 
     def format_prompt(self, key: str, text: str, source: str = "Unknown", language: str = "") -> Optional[str]:
+        """格式化提示词模板
+
+        Args:
+            key: 模板键
+            text: 文本内容
+            source: 来源信息
+            language: 编程语言
+
+        Returns:
+            格式化后的提示词，失败时返回 None
+        """
         template = self.templates.get(key)
         if not template:
             return None
 
-        return template.prompt.format(
-            text=text,
-            source=source,
-            language=language
-        )
+        try:
+            return template.prompt.format(
+                text=text,
+                source=source,
+                language=language
+            )
+        except KeyError as e:
+            logger.warning(f"模板 '{key}' 缺少占位符: {e}")
+            # 回退：只替换已知占位符
+            result = template.prompt
+            for placeholder, value in [('{text}', text), ('{source}', source), ('{language}', language)]:
+                result = result.replace(placeholder, value)
+            return result
+        except (ValueError, AttributeError) as e:
+            logger.warning(f"模板 '{key}' 格式化错误: {e}")
+            return None
 
 
 # 全局实例

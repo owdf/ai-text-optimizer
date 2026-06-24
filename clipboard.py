@@ -4,6 +4,7 @@
 优化版本：
 - 修复所有裸except子句为具体异常类型
 - 添加更详细的错误日志
+- 使用结构化日志模块
 """
 
 import time
@@ -11,6 +12,9 @@ import threading
 from typing import Optional
 import ctypes
 import pyperclip
+from logger import get_logger
+
+logger = get_logger("clipboard")
 
 
 class ClipboardManager:
@@ -75,7 +79,7 @@ class ClipboardManager:
             return content if content and content.strip() else None
         # [优化] 替换裸except为具体异常类型
         except (pyperclip.PyperclipException, OSError, RuntimeError) as e:
-            print(f"[Clipboard] get_clipboard_text error: {type(e).__name__}: {e}")
+            logger.warning(f"get_clipboard_text error: {type(e).__name__}: {e}")
             return None
 
     def _press_ctrl_c(self):
@@ -113,7 +117,7 @@ class ClipboardManager:
             return True
         # [优化] 替换裸except为具体异常类型
         except (pyperclip.PyperclipException, OSError, RuntimeError) as e:
-            print(f"[Clipboard] set_content error: {type(e).__name__}: {e}")
+            logger.warning(f"set_content error: {type(e).__name__}: {e}")
             return False
 
 

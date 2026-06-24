@@ -9,6 +9,15 @@ from pathlib import Path
 from typing import Dict, Optional
 
 
+def _resolve_config_path(filename: str = "config.json") -> Path:
+    """解析配置路径（优先CWD，否则脚本目录）"""
+    cwd_path = Path.cwd() / filename
+    if cwd_path.exists():
+        return cwd_path
+    script_dir = Path(__file__).parent
+    return script_dir / filename
+
+
 def get_system_language() -> str:
     """
     获取系统语言
@@ -327,8 +336,8 @@ LANGUAGE_PACKS = {
 class LanguageManager:
     """语言管理器"""
 
-    def __init__(self, config_path: str = "config.json"):
-        self.config_path = Path(config_path)
+    def __init__(self, config_path: str = None):
+        self.config_path = Path(config_path) if config_path else _resolve_config_path()
         self._current_lang = "zh"
         self._load_language()
 
@@ -343,7 +352,7 @@ class LanguageManager:
                     if lang == "auto" or lang not in LANGUAGE_PACKS:
                         lang = "zh"
                     self._current_lang = lang
-        except:
+        except (json.JSONDecodeError, KeyError, FileNotFoundError, OSError):
             self._current_lang = "zh"
 
     def get_lang(self) -> str:

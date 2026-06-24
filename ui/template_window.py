@@ -7,6 +7,9 @@ from typing import Optional, Callable
 from prompt_templates import get_template_manager, PromptTemplate
 from language import t
 from icons import get_icon_manager
+from logger import get_logger
+
+logger = get_logger("template_ui")
 
 
 class TemplateWindow:
@@ -317,19 +320,19 @@ class TemplateWindow:
 
     def _on_add_click(self):
         """添加按钮点击"""
-        print("[Template] Add clicked")
+        logger.info("添加模板按钮点击")
         self._show_edit_dialog(None)
 
     def _on_edit_click(self):
         """编辑按钮点击"""
         if self._current_key:
-            print(f"[Template] Edit clicked: {self._current_key}")
+            logger.info(f"编辑模板: {self._current_key}")
             self._show_edit_dialog(self._current_key)
 
     def _on_delete_click(self):
         """删除按钮点击"""
         if self._current_key:
-            print(f"[Template] Delete clicked: {self._current_key}")
+            logger.info(f"删除模板: {self._current_key}")
             self._template_mgr.delete_template(self._current_key)
             self._current_key = None
             self._load_templates()
@@ -346,11 +349,11 @@ class TemplateWindow:
 
     def _show_edit_dialog(self, key: Optional[str]):
         """显示编辑对话框"""
-        print(f"[Template] _show_edit_dialog, key={key}")
+        logger.info(f"打开编辑对话框, key={key}")
 
         # 关闭已有的编辑窗口
         if self._edit_window is not None:
-            print("[Template] Closing existing edit window")
+            logger.info("关闭已有编辑窗口")
             self._edit_window.destroy()
             self._edit_window = None
 
@@ -358,7 +361,7 @@ class TemplateWindow:
         template = self._template_mgr.get_template(key) if is_edit else None
 
         # 创建新窗口
-        print("[Template] Creating new edit window")
+        logger.info("创建新编辑窗口")
         self._edit_window = ctk.CTkToplevel()
         self._edit_window.title(t("template_edit") if is_edit else t("template_add"))
         self._edit_window.geometry("600x600")
@@ -504,7 +507,7 @@ Please provide your analysis.""")
                 )
 
             if success:
-                print(f"[Template] Saved: {new_key}")
+                logger.info(f"模板已保存: {new_key}")
                 self._load_templates()
                 self._edit_window.destroy()
                 self._edit_window = None
@@ -539,7 +542,6 @@ Please provide your analysis.""")
         ).pack(side="left", padx=10)
 
         # 强制显示窗口
-        print("[Template] Updating window")
         self._edit_window.update_idletasks()
 
         # 重新计算位置（使用主窗口位置）
@@ -550,14 +552,13 @@ Please provide your analysis.""")
             new_x = main_x + 50
             new_y = main_y + 50
             self._edit_window.geometry(f"600x600+{new_x}+{new_y}")
-            print(f"[Template] Position: {new_x}, {new_y}")
+            logger.info(f"编辑窗口位置: {new_x}, {new_y}")
 
-        print("[Template] Showing window")
         self._edit_window.deiconify()
         self._edit_window.lift()
         self._edit_window.focus_force()
 
-        print("[Template] Edit dialog shown successfully")
+        logger.info("编辑对话框已显示")
 
     def _close_edit_window(self):
         """关闭编辑窗口"""

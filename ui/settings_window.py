@@ -323,7 +323,7 @@ class SettingsWindow:
             index = lang_names.index(choice)
             lang_code = langs[index]
             self.lang_mgr.set_lang(lang_code)
-        except:
+        except (ValueError, IndexError):
             pass
 
     def _load_config(self):
@@ -364,7 +364,7 @@ class SettingsWindow:
         try:
             index = lang_names.index(self._lang_var.get())
             self.config.set("general.language", langs[index])
-        except:
+        except (ValueError, IndexError):
             pass
 
         if self.config.save():

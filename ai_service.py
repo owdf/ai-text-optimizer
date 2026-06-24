@@ -6,14 +6,18 @@ AI服务适配层
 - 提取公共异常处理方法 _request_with_retry
 - 减少重复的 try/except 代码块
 - 添加请求重试机制
+- 使用结构化日志模块
 """
 
 import requests
 import json
 from typing import Dict, List, Optional, Any
 from config import get_config
-from context_analyzer import get_context_analyzer, WindowContext, TextAnalysis
+from context_analyzer import get_context_analyzer
 from text_cleaner import clean_markdown
+from logger import get_logger
+
+logger = get_logger("ai_service")
 
 
 class AIServiceError(Exception):

@@ -7,11 +7,15 @@
 - 关键词使用集合加速成员检测（O(1) vs O(n)）
 - KNOWN_APPS 构建反向索引加速查找
 - 移除未使用的 subprocess 导入
+- 移除死代码
 """
 
 import re
 from typing import Dict, Tuple, Optional, Set
 from dataclasses import dataclass
+from logger import get_logger
+
+logger = get_logger("context")
 
 
 @dataclass
@@ -229,7 +233,7 @@ class ContextAnalyzer:
             )
 
         except Exception as e:
-            print(f"获取活动窗口失败: {e}")
+            logger.warning(f"获取活动窗口失败: {e}")
             return WindowContext(
                 app_name="未知应用",
                 window_title="",
@@ -297,8 +301,6 @@ class ContextAnalyzer:
 
         # 2. 反向索引中查找标题关键词
         title_lower = window_title.lower()
-        for kw, cat in ('title', 'title'), ('title', 'title'):
-            pass  # 占位，下面循环处理
 
         # 遍历标题反向索引
         for (kw, kind), (name, category) in self._APP_REVERSE_INDEX.items():

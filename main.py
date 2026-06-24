@@ -6,9 +6,12 @@ AI文本优化器 - 主程序
 - 修复裸except子句为具体异常类型
 - 将延迟导入移到文件顶部
 - 改进错误日志记录
+- 添加优雅退出信号处理
+- 使用结构化日志模块
 """
 
 import sys
+import signal
 import threading
 import traceback
 import pyperclip
@@ -25,6 +28,9 @@ from ui import (
     get_floating_window, SettingsWindow, get_tray_icon, stop_tray_icon,
     get_hotkey_window, get_template_window
 )
+from logger import get_logger
+
+logger = get_logger("main")
 
 
 class AITextOptimizer:
@@ -43,7 +49,6 @@ class AITextOptimizer:
         self.template_window = None
 
         self._current_template = "code_fix"
-        self._enable_logging = self.config.get("general.enable_logging", False)
 
         self.root = ctk.CTk()
         self.root.withdraw()
@@ -54,10 +59,6 @@ class AITextOptimizer:
         self._setup_callbacks()
         self.hotkey_listener = None
         self._processing = False
-
-    def _log(self, msg: str):
-        if self._enable_logging:
-            print(msg)
 
     def _setup_callbacks(self):
         self.floating_window.set_on_copy(self._copy_to_clipboard)
@@ -105,10 +106,10 @@ class AITextOptimizer:
         self._current_template = template_key
         template = self.template_mgr.get_template(template_key)
         if template:
-            print(f"[Template] {template.name}")
+            logger.info(f"选择模板: {template.name}")
 
     def _on_hotkey_save(self, new_hotkey: str):
-        print(f"[Hotkey] {new_hotkey}")
+        logger.info(f"热键已更新: {new_hotkey}")
         if self.hotkey_listener:
             self.hotkey_listener.update_hotkey(new_hotkey)
         self.tray_icon.update_hotkey_display()
@@ -117,13 +118,12 @@ class AITextOptimizer:
     def _on_settings_save(self):
         self.config = get_config()
         self.ai_service = reload_ai_service()
-        self._enable_logging = self.config.get("general.enable_logging", False)
         if self.hotkey_listener:
             self.hotkey_listener.update_hotkey(self.config.get_hotkey())
 
     def _on_language_change(self, lang: str):
         """语言切换回调"""
-        print(f"[Lang] {lang}")
+        logger.info(f"语言切换: {lang}")
         self.tray_icon.update_language()
 
     def _toggle_hotkey(self, enabled: bool):
@@ -138,20 +138,20 @@ class AITextOptimizer:
         if self._processing:
             return
 
-        print("[Hotkey] Triggered")
+        logger.info("热键触发")
 
         # [优化] 使用具体异常类型替代裸except
         try:
             text = pyperclip.paste()
         except (pyperclip.PyperclipException, OSError, RuntimeError) as e:
-            self._log(f"[Hotkey] Clipboard error: {e}")
+            logger.warning(f"剪贴板读取失败: {e}")
             text = ""
 
         if text and text.strip():
-            print(f"[Hotkey] Got text: {len(text)} chars")
+            logger.info(f"获取到文本: {len(text)} 字符")
             self.root.after(0, self._process_text, text)
         else:
-            print("[Hotkey] Empty")
+            logger.info("剪贴板为空")
             self.root.after(0, self._show_no_text)
 
     def _show_no_text(self):
@@ -162,14 +162,13 @@ class AITextOptimizer:
         )
 
     def _process_text(self, text: str):
-        self._log("[Process] Start")
+        logger.info("开始处理文本")
         self._processing = True
 
         context = self.context_analyzer.get_active_window()
         analysis = self.context_analyzer.analyze_text(text, context)
 
-        print(f"[Process] App: {context.app_name}")
-        print(f"[Process] Type: {analysis.content_type}")
+        logger.info(f"应用: {context.app_name}, 类型: {analysis.content_type}")
 
         context_info = {
             "app_name": context.app_name,
@@ -182,7 +181,7 @@ class AITextOptimizer:
         threading.Thread(target=self._call_ai, args=(text, context, analysis), daemon=True).start()
 
     def _call_ai(self, text: str, context, analysis):
-        self._log("[AI] Calling...")
+        logger.info("调用AI...")
         try:
             source = f"{context.app_name} ({context.category})"
             language = analysis.language if analysis.language != "unknown" else ""
@@ -211,17 +210,16 @@ class AITextOptimizer:
                     "response": response
                 }
 
-            print("[AI] Done")
+            logger.info("AI调用完成")
             self.root.after(0, self._update_result, result)
 
         except AIServiceError as e:
             error_msg = f"{t('ai_error')}: {str(e)}"
-            print(f"[AI] {error_msg}")
+            logger.error(error_msg)
             self.root.after(0, self._update_error, error_msg)
         except Exception as e:
             error_msg = f"{t('error')}: {str(e)}"
-            print(f"[AI] {error_msg}")
-            traceback.print_exc()
+            logger.error(f"{error_msg}\n{traceback.format_exc()}")
             self.root.after(0, self._update_error, error_msg)
         finally:
             self._processing = False
@@ -234,7 +232,7 @@ class AITextOptimizer:
         self.floating_window.update_result(error_msg)
 
     def _quit(self):
-        print("[Quit]")
+        logger.info("程序退出")
         stop_hotkey_listener()
         stop_tray_icon()
         if self.settings_window:
@@ -252,26 +250,30 @@ class AITextOptimizer:
         template = self.template_mgr.get_template(self._current_template)
         template_name = template.name if template else "Default"
 
-        print("\n" + "="*50)
-        print(f"   {t('start_title')}")
-        print("="*50)
-        print(f"   {t('start_hotkey')}: {hotkey.upper().replace('+', ' + ')}")
-        print(f"   {t('start_template')}: {template_name}")
-        print(f"   {t('start_usage')}:")
-        print(f"   {t('start_step1')}")
-        print(f"   {t('start_step2')}")
-        print(f"   {t('start_step3')}")
-        print(f"   {t('start_step4')}")
-        print(f"\n   {t('start_change')}:")
-        print(f"   {t('start_change_tip')}")
-        print("\n" + "="*50)
+        # 注册信号处理实现优雅退出
+        def _signal_handler(signum, frame):
+            logger.info(f"收到信号 {signum}，正在退出...")
+            self.root.after(0, self._quit)
+
+        signal.signal(signal.SIGINT, _signal_handler)
+        signal.signal(signal.SIGTERM, _signal_handler)
+
+        logger.info("=" * 50)
+        logger.info(f"  {t('start_title')}")
+        logger.info("=" * 50)
+        logger.info(f"  {t('start_hotkey')}: {hotkey.upper().replace('+', ' + ')}")
+        logger.info(f"  {t('start_template')}: {template_name}")
+        logger.info(f"  {t('start_usage')}:")
+        logger.info(f"  {t('start_step1')}")
+        logger.info(f"  {t('start_step2')}")
+        logger.info(f"  {t('start_step3')}")
+        logger.info(f"  {t('start_step4')}")
+        logger.info(f"  {t('start_ready')}")
 
         self.tray_icon.start()
 
         self.hotkey_listener = get_hotkey_listener(self._on_hotkey_triggered)
         self.hotkey_listener.start()
-
-        print(f"[{t('start_ready')}]\n")
 
         self.root.mainloop()
 
