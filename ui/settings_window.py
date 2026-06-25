@@ -367,12 +367,15 @@ class SettingsWindow:
         except (ValueError, IndexError):
             pass
 
-        if self.config.save():
+        saved = self.config.save()
+        if saved:
             self._set_status(t("settings_saved"))
-            if self._on_save:
-                self._on_save()
         else:
             self._set_status(t("settings_save_failed"))
+
+        # 内存配置已更新，无条件通知监听器
+        if self._on_save:
+            self._on_save()
 
     def _reset_config(self):
         self.config.reset_to_default()

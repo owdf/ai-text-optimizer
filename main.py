@@ -86,11 +86,24 @@ class AITextOptimizer:
         self.root.after(0, self._show_hotkey_thread)
 
     def _show_hotkey_thread(self):
+        # 暂停主热键监听，避免跟 HotkeyWindow 的 pynput 监听器冲突
+        self._hotkey_was_running = (
+            self.hotkey_listener is not None and self.hotkey_listener.is_running()
+        )
+        if self._hotkey_was_running:
+            self.hotkey_listener.stop()
+
         if self.hotkey_window is None:
             self.hotkey_window = get_hotkey_window()
-            self.hotkey_window.set_on_close(lambda: setattr(self, 'hotkey_window', None))
+            self.hotkey_window.set_on_close(self._on_hotkey_window_close)
             self.hotkey_window.set_on_save(self._on_hotkey_save)
         self.hotkey_window.show()
+
+    def _on_hotkey_window_close(self):
+        """HotkeyWindow 关闭时恢复主热键监听"""
+        self.hotkey_window = None
+        if self._hotkey_was_running and self.hotkey_listener:
+            self.hotkey_listener.start()
 
     def _show_templates(self):
         self.root.after(0, self._show_templates_thread)
@@ -120,6 +133,7 @@ class AITextOptimizer:
         self.ai_service = reload_ai_service()
         if self.hotkey_listener:
             self.hotkey_listener.update_hotkey(self.config.get_hotkey())
+        self.tray_icon.update_hotkey_display()
 
     def _on_language_change(self, lang: str):
         """语言切换回调"""

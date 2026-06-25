@@ -345,6 +345,8 @@ class HotkeyWindow:
 
     def _set_preset(self, hotkey: str):
         """设置预设热键"""
+        self._stop_listen()
+
         display = hotkey.upper().replace("+", " + ")
         self._preview_label.configure(text=display, text_color="#a6e3a1")
 
@@ -352,7 +354,7 @@ class HotkeyWindow:
         self.config.set("hotkey.trigger", hotkey)
         self.config.save()
 
-        self._status_label.configure(text="热键已更新！", text_color="#a6e3a1")
+        self._status_label.configure(text=t("hotkey_saved"), text_color="#a6e3a1")
 
         if self._on_save:
             self._on_save(hotkey)
