@@ -27,7 +27,7 @@ class TrayIcon:
         self._on_toggle_hotkey: Optional[Callable] = None
         self._on_change_lang: Optional[Callable] = None
 
-        self._hotkey_enabled = True
+        self._hotkey_enabled = bool(self.config.get("hotkey.enabled", True))
 
     def _create_icon_image(self) -> Image.Image:
         width = 64
@@ -45,9 +45,13 @@ class TrayIcon:
 
         return pystray.Menu(
             item(
+                t("tray_settings"),
+                self._on_settings_click,
+                default=True  # 双击托盘图标打开设置
+            ),
+            item(
                 f'{t("tray_hotkey")}: {hotkey}',
                 self._on_hotkey_settings_click,
-                default=True
             ),
             item(
                 t("tray_hotkey_on") if self._hotkey_enabled else t("tray_hotkey_off"),
@@ -57,10 +61,6 @@ class TrayIcon:
             item(
                 t("tray_templates"),
                 self._on_templates_click
-            ),
-            item(
-                t("tray_settings"),
-                self._on_settings_click
             ),
             item(
                 f'{t("settings_language")}: {lang_name}',
@@ -135,7 +135,7 @@ class TrayIcon:
 
     def _run(self) -> None:
         self._icon = pystray.Icon(
-            t("app_name"),
+            "ai_text_optimizer",
             self._create_icon_image(),
             t("app_name"),
             self._create_menu()
@@ -148,6 +148,16 @@ class TrayIcon:
         self._is_running = True
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
+
+    def notify(self, title: str, message: str) -> None:
+        """系统托盘气泡通知（Windows）"""
+        if not self._icon:
+            return
+        try:
+            # pystray: notify(message, title)
+            self._icon.notify(message, title)
+        except Exception:
+            pass
 
     def stop(self) -> None:
         if not self._is_running:

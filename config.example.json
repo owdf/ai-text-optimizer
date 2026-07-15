@@ -1,9 +1,9 @@
 {
   "ai_service": {
-    "provider": "openai_compatible",
+    "provider": "openai",
     "api_key": "",
     "base_url": "https://api.openai.com/v1",
-    "model": "gpt-4",
+    "model": "gpt-4o",
     "max_tokens": 2000,
     "temperature": 0.7
   },
@@ -14,6 +14,7 @@
   "clipboard": {
     "wait_mode_timeout": 15,
     "check_interval": 0.2,
+    "copy_timeout": 1.0,
     "ignore_patterns": [
       "[Violation]",
       "Permissions policy",
@@ -35,5 +36,8 @@
     "show_notifications": true,
     "language": "auto",
     "enable_logging": false
+  },
+  "prompts": {
+    "extra": ""
   }
 }

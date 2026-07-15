@@ -12,6 +12,9 @@ from pathlib import Path
 # 项目根目录
 ROOT = Path(__file__).parent
 
+# Windows 用 ';'，Unix 用 ':'
+_DATA_SEP = ";" if sys.platform == "win32" else ":"
+
 # PyInstaller 参数
 PARAMS = [
     sys.executable, "-m", "PyInstaller",
@@ -19,8 +22,8 @@ PARAMS = [
     "--windowed",                    # 无控制台窗口
     "--name", "AI文本优化器",
     "--icon", "NONE",                # 无外部图标，使用内置
-    "--add-data", f"prompt_templates.json{':' if sys.platform == 'win32' else ':'}.",
-    "--add-data", f"config.example.json{':' if sys.platform == 'win32' else ':'}.",
+    "--add-data", f"prompt_templates.json{_DATA_SEP}.",
+    "--add-data", f"config.example.json{_DATA_SEP}.",
     "--hidden-import", "pystray._win32",
     "--hidden-import", "PIL._imagingtk",
     "--hidden-import", "PIL.ImageTk",

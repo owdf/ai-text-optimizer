@@ -4,22 +4,18 @@
 """
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional
+from app_paths import resolve_data_file
+from url_utils import is_loopback_url, validate_api_base_url
 from logger import get_logger
 
 logger = get_logger("config")
 
 
 def _resolve_config_path(filename: str = "config.json") -> Path:
-    """解析配置文件路径（优先CWD以保持向后兼容，否则使用脚本目录）"""
-    cwd_path = Path.cwd() / filename
-    if cwd_path.exists():
-        return cwd_path
-    # 回退到脚本所在目录
-    script_dir = Path(__file__).parent
-    return script_dir / filename
+    """解析可持久化配置路径。"""
+    return resolve_data_file(filename, Path(__file__).parent)
 
 
 class Config:
@@ -56,10 +52,10 @@ class Config:
         """创建默认配置"""
         self.config = {
             "ai_service": {
-                "provider": "openai_compatible",
+                "provider": "openai",
                 "api_key": "",
                 "base_url": "https://api.openai.com/v1",
-                "model": "gpt-4",
+                "model": "gpt-4o",
                 "max_tokens": 2000,
                 "temperature": 0.7
             },
@@ -70,6 +66,7 @@ class Config:
             "clipboard": {
                 "wait_mode_timeout": 15,
                 "check_interval": 0.2,
+                "copy_timeout": 1.0,
                 "ignore_patterns": [
                     "[Violation]",
                     "Permissions policy",
@@ -91,6 +88,9 @@ class Config:
                 "show_notifications": True,
                 "language": "auto",
                 "enable_logging": False
+            },
+            "prompts": {
+                "extra": ""
             }
         }
         self.save()
@@ -103,6 +103,7 @@ class Config:
             bool: 保存是否成功
         """
         try:
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
             return True
@@ -201,10 +202,16 @@ class Config:
         return self.get("ui", {})
     
     def is_api_configured(self) -> bool:
-        """检查API是否已配置"""
+        """检查API是否已配置（本地 Ollama 等允许空 key）"""
+        base_url = self.get("ai_service.base_url", "") or ""
+        try:
+            base_url = validate_api_base_url(base_url)
+        except ValueError:
+            return False
+        if is_loopback_url(base_url):
+            return True
         api_key = self.get("ai_service.api_key", "")
-        base_url = self.get("ai_service.base_url", "")
-        return bool(api_key and base_url)
+        return bool(api_key and str(api_key).strip())
     
     def reset_to_default(self) -> None:
         """重置为默认配置"""

@@ -85,8 +85,8 @@ class ContextAnalyzer:
     # ---- 预编译正则模式 ----
     _RE_LINE_NUMBER = re.compile(r'line \d+|at \w+\.\w+:\d+')
     _RE_STACK_TRACE = re.compile(r'at .+\(.+:\d+:\d+\)')
-    _RE_BRACES = re.compile(r'\{[\s\S]\}')
-    _RE_PARENS = re.compile(r'\([\s\S]\)')
+    _RE_BRACES = re.compile(r'\{[\s\S]*?\}')
+    _RE_PARENS = re.compile(r'\([\s\S]*?\)')
     _RE_FUNC_CLASS = re.compile(r'function\s+\w+|def\s+\w+|class\s+\w+')
     _RE_IMPORT = re.compile(r'import\s+\w+|from\s+\w+\s+import')
     _RE_TIMESTAMP_DATE = re.compile(r'\d{4}-\d{2}-\d{2}')

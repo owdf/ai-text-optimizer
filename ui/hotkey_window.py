@@ -1,5 +1,5 @@
 """
-热键设置窗口 - 按下热键方式
+热键设置窗口 - 按下热键方式 + 统一主题
 """
 
 import customtkinter as ctk
@@ -9,13 +9,19 @@ from language import t
 from icons import get_icon_manager
 from pynput import keyboard
 from pynput.keyboard import Key, KeyCode
+from ui.theme import (
+    Colors, Space, Radius, Type, Size,
+    font, apply_window_chrome, make_card, secondary_button, status_color,
+)
 
 
 class HotkeyWindow:
     """热键设置窗口 - 按下热键方式"""
 
-    def __init__(self):
+    def __init__(self, master=None, dispatcher=None):
         self.config = get_config()
+        self._master = master
+        self._dispatcher = dispatcher
         self._window: Optional[ctk.CTkToplevel] = None
         self._is_visible = False
         self._on_close: Optional[Callable] = None
@@ -26,20 +32,30 @@ class HotkeyWindow:
         self._listening = False
         self._listener = None
         self._pressed_keys = set()
+        self._save_after_id = None  # 取消/替换延迟保存定时器
 
         # UI组件
         self._status_label = None
         self._preview_label = None
         self._listen_btn = None
+        self._current_label = None
+
+    def _dispatch_ui(self, callback, *args):
+        if self._dispatcher is not None:
+            self._dispatcher(callback, *args)
+        elif self._window is not None:
+            self._window.after(0, callback, *args)
 
     def _create_window(self) -> None:
         if self._window is not None:
             return
 
-        self._window = ctk.CTkToplevel()
-        self._window.title(t("hotkey_title"))
-        self._window.geometry("450x400")
-        self._window.attributes("-topmost", True)
+        if self._master is not None:
+            self._window = ctk.CTkToplevel(self._master)
+        else:
+            self._window = ctk.CTkToplevel()
+        apply_window_chrome(self._window, t("hotkey_title"))
+        self._window.geometry("480x460")
         self._window.resizable(False, False)
 
         self._center_window()
@@ -51,164 +67,138 @@ class HotkeyWindow:
             return
         sw = self._window.winfo_screenwidth()
         sh = self._window.winfo_screenheight()
-        x = (sw - 450) // 2
-        y = (sh - 400) // 2
-        self._window.geometry(f"450x400+{x}+{y}")
+        x = (sw - 480) // 2
+        y = (sh - 460) // 2
+        self._window.geometry(f"480x460+{x}+{y}")
 
     def _create_widgets(self) -> None:
         if self._window is None:
             return
 
-        main = ctk.CTkFrame(self._window, fg_color="#1e1e2e")
-        main.pack(fill="both", expand=True, padx=15, pady=15)
+        main = ctk.CTkFrame(self._window, fg_color=Colors.BG, corner_radius=0)
+        main.pack(fill="both", expand=True, padx=Size.WINDOW_PAD, pady=Size.WINDOW_PAD)
 
         # 标题
         header = ctk.CTkFrame(main, fg_color="transparent")
-        header.pack(fill="x", pady=(0, 20))
+        header.pack(fill="x", pady=(0, Space.LG))
 
-        settings_icon = self._icons.create_icon("settings", size=22, color="#cba6f7")
+        settings_icon = self._icons.create_icon("settings", size=22, color=Colors.ACCENT_AI)
         ctk.CTkLabel(
             header,
             image=settings_icon,
-            text=f" {t('hotkey_title')}",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color="#cba6f7",
-            compound="left"
+            text=f"  {t('hotkey_title')}",
+            font=font(Type.TITLE, "bold"),
+            text_color=Colors.TEXT,
+            compound="left",
         ).pack(side="left")
 
-        # 当前热键
-        current_frame = ctk.CTkFrame(main, fg_color="#313244", corner_radius=8)
-        current_frame.pack(fill="x", pady=(0, 20))
-
+        # 当前热键卡片
+        current_frame = make_card(main, fill="x", pady=(0, Space.LG))
         ctk.CTkLabel(
             current_frame,
-            text=t("hotkey_current") + ":",
-            font=ctk.CTkFont(size=12),
-            text_color="#a6adc8"
-        ).pack(padx=15, pady=(10, 5))
+            text=t("hotkey_current"),
+            font=font(Type.LABEL),
+            text_color=Colors.TEXT_SECONDARY,
+        ).pack(padx=Size.SECTION_PAD_X, pady=(Size.SECTION_PAD_Y, Space.XS), anchor="w")
 
         current_hotkey = self.config.get_hotkey().upper().replace("+", " + ")
-        ctk.CTkLabel(
+        self._current_label = ctk.CTkLabel(
             current_frame,
             text=current_hotkey,
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#89b4fa"
-        ).pack(padx=15, pady=(0, 15))
+            font=font(22, "bold"),
+            text_color=Colors.PRIMARY,
+        )
+        self._current_label.pack(padx=Size.SECTION_PAD_X, pady=(0, Size.SECTION_PAD_Y), anchor="w")
 
         # 监听区域
-        listen_frame = ctk.CTkFrame(main, fg_color="#181825", corner_radius=10)
-        listen_frame.pack(fill="x", pady=(0, 20))
+        listen_frame = make_card(main, fill="x", pady=(0, Space.LG))
 
-        # 说明文字
         ctk.CTkLabel(
             listen_frame,
             text=t("hotkey_press"),
-            font=ctk.CTkFont(size=14),
-            text_color="#cdd6f4"
-        ).pack(pady=(15, 10))
+            font=font(Type.BODY, "bold"),
+            text_color=Colors.TEXT,
+        ).pack(pady=(Size.SECTION_PAD_Y, Space.SM))
 
         ctk.CTkLabel(
             listen_frame,
             text=t("hotkey_example"),
-            font=ctk.CTkFont(size=11),
-            text_color="#6c7086"
-        ).pack(pady=(0, 10))
+            font=font(Type.HINT),
+            text_color=Colors.TEXT_SECONDARY,
+        ).pack(pady=(0, Space.MD))
 
-        # 预览标签
-        self._preview_label = ctk.CTkLabel(
-            listen_frame,
-            text=t("hotkey_waiting"),
-            font=ctk.CTkFont(size=24, weight="bold"),
-            text_color="#f9e2af"
+        # 预览区
+        preview_box = ctk.CTkFrame(
+            listen_frame, fg_color=Colors.INPUT_BG, corner_radius=Radius.MD, height=56
         )
-        self._preview_label.pack(pady=(0, 10))
+        preview_box.pack(fill="x", padx=Size.SECTION_PAD_X, pady=(0, Space.MD))
+        preview_box.pack_propagate(False)
 
-        # 状态标签
+        self._preview_label = ctk.CTkLabel(
+            preview_box,
+            text=t("hotkey_waiting"),
+            font=font(20, "bold"),
+            text_color=Colors.WARNING,
+        )
+        self._preview_label.pack(expand=True)
+
         self._status_label = ctk.CTkLabel(
             listen_frame,
             text="",
-            font=ctk.CTkFont(size=11),
-            text_color="#a6adc8"
+            font=font(Type.HINT),
+            text_color=Colors.TEXT_SECONDARY,
         )
-        self._status_label.pack(pady=(0, 5))
+        self._status_label.pack(pady=(0, Space.SM))
 
-        # 监听按钮
+        # 主操作按钮 ≥44px
         self._listen_btn = ctk.CTkButton(
             listen_frame,
             text=t("hotkey_start_listen"),
-            font=ctk.CTkFont(size=14, weight="bold"),
-            height=45,
-            width=200,
-            fg_color="#f38ba8",
-            hover_color="#eba0ac",
-            text_color="#1e1e2e",
+            font=font(Type.BODY, "bold"),
+            height=44,
+            width=220,
+            fg_color=Colors.DANGER,
+            hover_color=Colors.DANGER_HOVER,
+            text_color=Colors.TEXT_INVERSE,
             command=self._toggle_listen,
-            corner_radius=8
+            corner_radius=Radius.MD,
         )
-        self._listen_btn.pack(pady=(5, 20))
+        self._listen_btn.pack(pady=(Space.SM, Size.SECTION_PAD_Y))
 
-        # 底部按钮
+        # 底栏：快捷预设 + 关闭
         btn_frame = ctk.CTkFrame(main, fg_color="transparent")
         btn_frame.pack(fill="x")
 
-        # 预设按钮
         preset_frame = ctk.CTkFrame(btn_frame, fg_color="transparent")
-        preset_frame.pack(side="left")
+        preset_frame.pack(side="left", fill="x", expand=True)
 
         ctk.CTkLabel(
             preset_frame,
-            text="预设:",
-            font=ctk.CTkFont(size=11),
-            text_color="#6c7086"
-        ).pack(side="left", padx=(0, 5))
+            text=t("hotkey_preset") + ":",
+            font=font(Type.HINT),
+            text_color=Colors.TEXT_SECONDARY,
+        ).pack(side="left", padx=(0, Space.SM))
 
-        ctk.CTkButton(
-            preset_frame,
-            text="Ctrl+Q",
-            font=ctk.CTkFont(size=11),
-            height=28,
-            width=70,
-            fg_color="#45475a",
-            hover_color="#585b70",
-            command=lambda: self._set_preset("ctrl+q"),
-            corner_radius=4
-        ).pack(side="left", padx=2)
+        for label, value in (
+            ("Ctrl+Q", "ctrl+q"),
+            ("Ctrl+Shift+Q", "ctrl+shift+q"),
+            ("Alt+A", "alt+a"),
+        ):
+            ctk.CTkButton(
+                preset_frame,
+                text=label,
+                font=font(Type.CAPTION),
+                height=32,
+                width=max(72, len(label) * 9),
+                fg_color=Colors.SURFACE_MUTED,
+                hover_color=Colors.SURFACE_HOVER,
+                text_color=Colors.TEXT,
+                command=lambda v=value: self._set_preset(v),
+                corner_radius=Radius.SM,
+            ).pack(side="left", padx=2)
 
-        ctk.CTkButton(
-            preset_frame,
-            text="Ctrl+Shift+Q",
-            font=ctk.CTkFont(size=11),
-            height=28,
-            width=100,
-            fg_color="#45475a",
-            hover_color="#585b70",
-            command=lambda: self._set_preset("ctrl+shift+q"),
-            corner_radius=4
-        ).pack(side="left", padx=2)
-
-        ctk.CTkButton(
-            preset_frame,
-            text="Alt+Q",
-            font=ctk.CTkFont(size=11),
-            height=28,
-            width=70,
-            fg_color="#45475a",
-            hover_color="#585b70",
-            command=lambda: self._set_preset("alt+q"),
-            corner_radius=4
-        ).pack(side="left", padx=2)
-
-        # 关闭按钮
-        ctk.CTkButton(
-            btn_frame,
-            text=t("close"),
-            font=ctk.CTkFont(size=13),
-            height=35,
-            width=80,
-            fg_color="#585b70",
-            hover_color="#45475a",
-            command=self._on_window_close,
-            corner_radius=6
+        secondary_button(
+            btn_frame, t("close"), self._on_window_close, width=88
         ).pack(side="right")
 
     def _toggle_listen(self):
@@ -225,11 +215,12 @@ class HotkeyWindow:
 
         self._listen_btn.configure(
             text=t("hotkey_stop_listen"),
-            fg_color="#a6e3a1",
-            hover_color="#94e2d5"
+            fg_color=Colors.SUCCESS,
+            hover_color=Colors.SUCCESS_HOVER,
+            text_color=Colors.TEXT_INVERSE,
         )
-        self._preview_label.configure(text=t("hotkey_waiting"), text_color="#f9e2af")
-        self._status_label.configure(text=t("hotkey_press_esc"), text_color="#6c7086")
+        self._preview_label.configure(text=t("hotkey_waiting"), text_color=Colors.WARNING)
+        self._status_label.configure(text=t("hotkey_press_esc"), text_color=Colors.TEXT_SECONDARY)
 
         # 启动键盘监听
         self._listener = keyboard.Listener(
@@ -242,16 +233,26 @@ class HotkeyWindow:
         """停止监听"""
         self._listening = False
 
+        if self._window is not None and self._save_after_id is not None:
+            try:
+                self._window.after_cancel(self._save_after_id)
+            except Exception:
+                pass
+            self._save_after_id = None
+
         if self._listener:
             self._listener.stop()
             self._listener = None
 
-        self._listen_btn.configure(
-            text=t("hotkey_start_listen"),
-            fg_color="#f38ba8",
-            hover_color="#eba0ac"
-        )
-        self._status_label.configure(text="")
+        if self._listen_btn is not None:
+            self._listen_btn.configure(
+                text=t("hotkey_start_listen"),
+                fg_color=Colors.DANGER,
+                hover_color=Colors.DANGER_HOVER,
+                text_color=Colors.TEXT_INVERSE,
+            )
+        if self._status_label is not None:
+            self._status_label.configure(text="")
 
     def _on_key_press(self, key):
         """按键按下"""
@@ -260,8 +261,7 @@ class HotkeyWindow:
 
         # ESC取消
         if key == Key.esc:
-            self._window.after(0, self._stop_listen)
-            self._window.after(0, lambda: self._preview_label.configure(text=t("hotkey_cancelled"), text_color="#f38ba8"))
+            self._dispatch_ui(self._cancel_listen_from_key)
             return
 
         self._pressed_keys.add(key)
@@ -297,10 +297,7 @@ class HotkeyWindow:
         # 更新预览
         if parts:
             hotkey_str = " + ".join(parts)
-            self._window.after(0, lambda: self._preview_label.configure(
-                text=hotkey_str,
-                text_color="#a6e3a1"
-            ))
+            self._dispatch_ui(self._show_preview, hotkey_str)
 
             # 如果有普通键且有修饰键，保存
             if normal_key and (ctrl or shift or alt):
@@ -316,8 +313,35 @@ class HotkeyWindow:
 
                 hotkey_save = "+".join(save_parts)
 
-                # 延迟保存
-                self._window.after(500, lambda: self._save_hotkey(hotkey_save))
+                # 只保留最近一次延迟保存，避免多次 after 互相覆盖
+                self._dispatch_ui(self._schedule_hotkey_save, hotkey_save)
+
+    def _cancel_listen_from_key(self):
+        if self._window is None:
+            return
+        self._stop_listen()
+        if self._preview_label is not None:
+            self._preview_label.configure(
+                text=t("hotkey_cancelled"), text_color=Colors.DANGER
+            )
+
+    def _show_preview(self, hotkey_str: str):
+        if self._window is not None and self._preview_label is not None:
+            self._preview_label.configure(
+                text=hotkey_str, text_color=Colors.SUCCESS
+            )
+
+    def _schedule_hotkey_save(self, hotkey: str):
+        if self._window is None:
+            return
+        if self._save_after_id is not None:
+            try:
+                self._window.after_cancel(self._save_after_id)
+            except Exception:
+                pass
+        self._save_after_id = self._window.after(
+            500, lambda h=hotkey: self._save_hotkey(h)
+        )
 
     def _on_key_release(self, key):
         """按键释放"""
@@ -328,6 +352,10 @@ class HotkeyWindow:
 
     def _save_hotkey(self, hotkey: str):
         """保存热键"""
+        self._save_after_id = None
+        if self._window is None:
+            return
+
         self._stop_listen()
 
         # 保存到配置
@@ -336,8 +364,12 @@ class HotkeyWindow:
 
         # 更新显示
         display = hotkey.upper().replace("+", " + ")
-        self._preview_label.configure(text=f"✓ {display}", text_color="#a6e3a1")
-        self._status_label.configure(text=t("hotkey_saved"), text_color="#a6e3a1")
+        if self._preview_label is not None:
+            self._preview_label.configure(text=display, text_color=Colors.SUCCESS)
+        if self._current_label is not None:
+            self._current_label.configure(text=display)
+        if self._status_label is not None:
+            self._status_label.configure(text=t("hotkey_saved"), text_color=status_color("success"))
 
         # 回调
         if self._on_save:
@@ -348,13 +380,15 @@ class HotkeyWindow:
         self._stop_listen()
 
         display = hotkey.upper().replace("+", " + ")
-        self._preview_label.configure(text=display, text_color="#a6e3a1")
+        self._preview_label.configure(text=display, text_color=Colors.SUCCESS)
+        if self._current_label is not None:
+            self._current_label.configure(text=display)
 
         # 保存
         self.config.set("hotkey.trigger", hotkey)
         self.config.save()
 
-        self._status_label.configure(text=t("hotkey_saved"), text_color="#a6e3a1")
+        self._status_label.configure(text=t("hotkey_saved"), text_color=status_color("success"))
 
         if self._on_save:
             self._on_save(hotkey)
@@ -395,8 +429,12 @@ class HotkeyWindow:
 
 _hotkey_window = None
 
-def get_hotkey_window():
+def get_hotkey_window(master=None, dispatcher=None):
     global _hotkey_window
     if _hotkey_window is None:
-        _hotkey_window = HotkeyWindow()
+        _hotkey_window = HotkeyWindow(master=master, dispatcher=dispatcher)
+    elif master is not None:
+        _hotkey_window._master = master
+    if dispatcher is not None:
+        _hotkey_window._dispatcher = dispatcher
     return _hotkey_window

@@ -117,15 +117,7 @@ class HotkeyListener:
             self._trigger = True
 
         # [优化] 使用缓存的热键配置，不再每次读文件
-        parts = self._cached_parts
-        match = (
-            (not parts['need_ctrl'] or self._ctrl) and
-            (not parts['need_shift'] or self._shift) and
-            (not parts['need_alt'] or self._alt) and
-            self._trigger
-        )
-
-        if match and not self._triggered:
+        if self._matches_hotkey() and not self._triggered:
             self._triggered = True
             print("[热键] 组合键触发！")
             # 重置状态
@@ -135,6 +127,16 @@ class HotkeyListener:
             self._trigger = False
             # 在新线程执行回调
             threading.Thread(target=self._safe_callback, daemon=True).start()
+
+    def _matches_hotkey(self) -> bool:
+        """Require an exact modifier set plus the configured trigger key."""
+        parts = self._cached_parts
+        return (
+            self._ctrl == parts['need_ctrl'] and
+            self._shift == parts['need_shift'] and
+            self._alt == parts['need_alt'] and
+            self._trigger
+        )
 
     def _on_release(self, key):
         """按键释放"""
@@ -183,7 +185,8 @@ class HotkeyListener:
         print("[热键] 监听已停止")
 
     def update_hotkey(self, new_hotkey: str):
-        """更新热键并刷新缓存（保存后无条件重启监听器）"""
+        """更新热键并保留监听器原有的运行状态。"""
+        was_running = self._running
         self.config.set_hotkey(new_hotkey)
         self.config.save()
         # 强制刷新缓存
@@ -195,9 +198,9 @@ class HotkeyListener:
         self._alt = False
         self._trigger = False
         self._triggered = False
-        # 无条件重启监听器
-        self.stop()
-        self.start()
+        if was_running:
+            self.stop()
+            self.start()
 
     def is_running(self):
         """是否运行中"""

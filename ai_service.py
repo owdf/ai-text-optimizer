@@ -9,15 +9,21 @@ AI服务适配层
 - 使用结构化日志模块
 """
 
+import time
 import requests
-import json
 from typing import Dict, List, Optional, Any
 from config import get_config
 from context_analyzer import get_context_analyzer
 from text_cleaner import clean_markdown
+from url_utils import is_loopback_url, validate_api_base_url
 from logger import get_logger
 
 logger = get_logger("ai_service")
+
+# 可重试的 HTTP 状态码
+_RETRYABLE_STATUS = {429, 502, 503, 504}
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY = 1.0  # seconds
 
 
 class AIServiceError(Exception):
@@ -28,51 +34,73 @@ class AIServiceError(Exception):
 class AIService:
     """统一AI服务接口"""
 
-    # 预设的AI服务配置
+    # API 格式：OpenAI / Anthropic（兼容旧值 openai_compatible / claude）
+    API_FORMAT_OPENAI = "openai"
+    API_FORMAT_ANTHROPIC = "anthropic"
+    API_FORMAT_ALIASES = {
+        "openai": API_FORMAT_OPENAI,
+        "openai_compatible": API_FORMAT_OPENAI,
+        "anthropic": API_FORMAT_ANTHROPIC,
+        "claude": API_FORMAT_ANTHROPIC,
+    }
+
+    # 预设服务（可一键填入，填入后仍可手动改）
     PRESET_SERVICES = {
         "openai": {
             "name": "OpenAI",
             "base_url": "https://api.openai.com/v1",
-            "models": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
-            "provider": "openai_compatible"
+            "model": "gpt-4o",
+            "provider": API_FORMAT_OPENAI,
         },
         "deepseek": {
             "name": "DeepSeek",
             "base_url": "https://api.deepseek.com/v1",
-            "models": ["deepseek-chat", "deepseek-coder"],
-            "provider": "openai_compatible"
+            "model": "deepseek-chat",
+            "provider": API_FORMAT_OPENAI,
         },
         "zhipu": {
             "name": "智谱AI (ChatGLM)",
             "base_url": "https://open.bigmodel.cn/api/paas/v4",
-            "models": ["glm-4", "glm-4-flash", "glm-3-turbo"],
-            "provider": "openai_compatible"
+            "model": "glm-4",
+            "provider": API_FORMAT_OPENAI,
         },
         "moonshot": {
             "name": "月之暗面 (Kimi)",
             "base_url": "https://api.moonshot.cn/v1",
-            "models": ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"],
-            "provider": "openai_compatible"
+            "model": "moonshot-v1-8k",
+            "provider": API_FORMAT_OPENAI,
         },
         "qwen": {
             "name": "阿里通义千问",
             "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-            "models": ["qwen-turbo", "qwen-plus", "qwen-max"],
-            "provider": "openai_compatible"
+            "model": "qwen-plus",
+            "provider": API_FORMAT_OPENAI,
         },
         "ollama": {
             "name": "本地 Ollama",
             "base_url": "http://localhost:11434/v1",
-            "models": ["llama3", "codellama", "mistral"],
-            "provider": "openai_compatible"
+            "model": "llama3",
+            "provider": API_FORMAT_OPENAI,
         },
-        "claude": {
-            "name": "Claude",
+        "anthropic": {
+            "name": "Anthropic Claude",
             "base_url": "https://api.anthropic.com/v1",
-            "models": ["claude-3-opus-20240229", "claude-3-sonnet-20240229"],
-            "provider": "claude"
-        }
+            "model": "claude-sonnet-4-20250514",
+            "provider": API_FORMAT_ANTHROPIC,
+        },
+        "custom": {
+            "name": "Custom",
+            "base_url": "",
+            "model": "",
+            "provider": API_FORMAT_OPENAI,
+        },
     }
+
+    @classmethod
+    def normalize_provider(cls, provider: str) -> str:
+        """将配置中的 provider 规范为 openai / anthropic"""
+        key = (provider or cls.API_FORMAT_OPENAI).strip().lower()
+        return cls.API_FORMAT_ALIASES.get(key, cls.API_FORMAT_OPENAI)
 
     def __init__(self):
         """初始化AI服务"""
@@ -83,23 +111,28 @@ class AIService:
     def _get_headers(self) -> Dict[str, str]:
         """获取请求头"""
         api_key = self.config.get("ai_service.api_key", "")
-        provider = self.config.get("ai_service.provider", "openai_compatible")
+        provider = self.normalize_provider(
+            self.config.get("ai_service.provider", self.API_FORMAT_OPENAI)
+        )
 
-        if provider == "claude":
+        if provider == self.API_FORMAT_ANTHROPIC:
             return {
                 "Content-Type": "application/json",
                 "x-api-key": api_key,
-                "anthropic-version": "2023-06-01"
+                "anthropic-version": "2023-06-01",
             }
-        else:
-            return {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            }
+        return {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}",
+        }
 
     def _get_base_url(self) -> str:
         """获取API基础URL"""
-        return self.config.get("ai_service.base_url", "https://api.openai.com/v1")
+        raw_url = self.config.get("ai_service.base_url", "https://api.openai.com/v1")
+        try:
+            return validate_api_base_url(raw_url)
+        except ValueError as e:
+            raise AIServiceError(str(e)) from e
 
     def _get_model(self) -> str:
         """获取模型名称"""
@@ -117,61 +150,96 @@ class AIService:
 
     def _make_request(self, url: str, payload: dict) -> dict:
         """
-        发送HTTP请求并处理公共异常（统一异常处理入口）
-
-        Args:
-            url: 请求URL
-            payload: 请求体
-
-        Returns:
-            解析后的JSON响应
+        发送HTTP请求：对 429/5xx 做有限次指数退避重试。
 
         Raises:
             AIServiceError: 请求失败时抛出异常
         """
-        try:
-            response = self._session.post(
-                url,
-                headers=self._get_headers(),
-                json=payload,
-                timeout=120
-            )
-            response.raise_for_status()
-            return response.json()
+        last_error: Optional[Exception] = None
 
-        except requests.exceptions.RequestException as e:
-            raise AIServiceError(f"网络请求失败: {str(e)}")
-        except (KeyError, IndexError, TypeError) as e:
-            raise AIServiceError(f"响应格式错误: {str(e)}")
-        except Exception as e:
-            raise AIServiceError(f"未知错误: {str(e)}")
+        for attempt in range(_MAX_RETRIES):
+            try:
+                response = self._session.post(
+                    url,
+                    headers=self._get_headers(),
+                    json=payload,
+                    timeout=120,
+                )
+                if response.status_code in _RETRYABLE_STATUS and attempt < _MAX_RETRIES - 1:
+                    delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                    logger.warning(
+                        f"可重试状态 {response.status_code}，{delay:.1f}s 后重试 "
+                        f"({attempt + 1}/{_MAX_RETRIES})"
+                    )
+                    time.sleep(delay)
+                    continue
+
+                response.raise_for_status()
+                return response.json()
+
+            except requests.exceptions.Timeout as e:
+                raise AIServiceError(f"请求超时(120s): {e}") from e
+            except requests.exceptions.HTTPError as e:
+                last_error = e
+                status = e.response.status_code if e.response is not None else None
+                if status in _RETRYABLE_STATUS and attempt < _MAX_RETRIES - 1:
+                    delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                    logger.warning(f"HTTP {status}，{delay:.1f}s 后重试 ({attempt + 1}/{_MAX_RETRIES})")
+                    time.sleep(delay)
+                    continue
+                raise AIServiceError(f"网络请求失败: {e}") from e
+            except requests.exceptions.RequestException as e:
+                last_error = e
+                if attempt < _MAX_RETRIES - 1:
+                    delay = _RETRY_BASE_DELAY * (2 ** attempt)
+                    logger.warning(f"网络错误，{delay:.1f}s 后重试 ({attempt + 1}/{_MAX_RETRIES}): {e}")
+                    time.sleep(delay)
+                    continue
+                raise AIServiceError(f"网络请求失败: {e}") from e
+            except (ValueError, KeyError, IndexError, TypeError) as e:
+                raise AIServiceError(f"响应格式错误: {e}") from e
+
+        raise AIServiceError(f"网络请求失败: {last_error}")
 
     def chat(self, messages: List[Dict[str, str]], stream: bool = False) -> str:
         """
-        发送聊天请求
+        发送聊天请求（非流式）。
 
         Args:
             messages: 消息列表
-            stream: 是否使用流式响应
+            stream: 必须为 False；流式暂未实现
 
         Returns:
             AI响应内容
 
         Raises:
-            AIServiceError: 请求失败时抛出异常
+            AIServiceError: 请求失败或 stream=True 时抛出
         """
-        provider = self.config.get("ai_service.provider", "openai_compatible")
+        if stream:
+            raise AIServiceError("流式响应尚未实现，请使用 stream=False")
 
-        if provider == "openai_compatible":
-            return self._chat_openai_compatible(messages, stream)
-        elif provider == "claude":
-            return self._chat_claude(messages, stream)
-        else:
-            raise AIServiceError(f"不支持的AI服务提供商: {provider}")
-
-    def _chat_openai_compatible(self, messages: List[Dict[str, str]], stream: bool = False) -> str:
-        """调用OpenAI兼容API"""
+        api_key = self.config.get("ai_service.api_key", "")
         base_url = self._get_base_url()
+        if not base_url:
+            raise AIServiceError("未配置 API 地址 (base_url)")
+        # 本地服务（如 Ollama）允许空 key
+        is_local = is_loopback_url(base_url)
+        if not api_key and not is_local:
+            raise AIServiceError("未配置 API 密钥，请先在设置中填写")
+
+        provider = self.normalize_provider(
+            self.config.get("ai_service.provider", self.API_FORMAT_OPENAI)
+        )
+
+        if provider == self.API_FORMAT_OPENAI:
+            return self._chat_openai_compatible(messages)
+        if provider == self.API_FORMAT_ANTHROPIC:
+            return self._chat_claude(messages)
+        raise AIServiceError(f"不支持的 API 格式: {provider}（仅支持 OpenAI / Anthropic）")
+
+    def _chat_openai_compatible(self, messages: List[Dict[str, str]]) -> str:
+        """调用OpenAI兼容API（非流式）"""
+        base_url = self._get_base_url().rstrip("/")
         url = f"{base_url}/chat/completions"
 
         payload = {
@@ -179,15 +247,17 @@ class AIService:
             "messages": messages,
             "max_tokens": self._get_max_tokens(),
             "temperature": self._get_temperature(),
-            "stream": stream
         }
 
         result = self._make_request(url, payload)
-        return result["choices"][0]["message"]["content"]
+        try:
+            return result["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, TypeError) as e:
+            raise AIServiceError(f"响应格式错误: {e}") from e
 
-    def _chat_claude(self, messages: List[Dict[str, str]], stream: bool = False) -> str:
-        """调用Claude API"""
-        base_url = self._get_base_url()
+    def _chat_claude(self, messages: List[Dict[str, str]]) -> str:
+        """调用Claude API（非流式）"""
+        base_url = self._get_base_url().rstrip("/")
         url = f"{base_url}/messages"
 
         # 转换消息格式
@@ -213,7 +283,10 @@ class AIService:
             payload["system"] = system_message
 
         result = self._make_request(url, payload)
-        return result["content"][0]["text"]
+        try:
+            return result["content"][0]["text"]
+        except (KeyError, IndexError, TypeError) as e:
+            raise AIServiceError(f"响应格式错误: {e}") from e
 
     def analyze_and_optimize(self, text: str) -> Dict[str, Any]:
         """
@@ -307,7 +380,12 @@ def get_ai_service() -> AIService:
 
 
 def reload_ai_service() -> AIService:
-    """重新加载AI服务"""
+    """重新加载AI服务，关闭旧 Session 避免连接泄漏"""
     global _ai_service
+    if _ai_service is not None:
+        try:
+            _ai_service._session.close()
+        except Exception:
+            pass
     _ai_service = AIService()
     return _ai_service

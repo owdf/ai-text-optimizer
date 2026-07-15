@@ -69,3 +69,16 @@ class TestTextCleaner:
         assert "\r\n" not in result
         assert "Hello" in result
         assert "World" in result
+
+    def test_fenced_code_is_not_rewritten(self):
+        text = "```python\n# keep this comment\nresult = a * b * c\n```"
+        result = clean_markdown(text)
+        assert "```" not in result
+        assert "# keep this comment" in result
+        assert "result = a * b * c" in result
+
+    def test_direct_code_and_yaml_are_not_rewritten(self):
+        code = "result = a * b * c\n# keep this comment"
+        yaml = "items:\n  - one\n  - two"
+        assert clean_markdown(code) == code
+        assert clean_markdown(yaml) == yaml

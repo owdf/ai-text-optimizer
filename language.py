@@ -7,15 +7,12 @@ import locale
 import ctypes
 from pathlib import Path
 from typing import Dict, Optional
+from app_paths import resolve_data_file
 
 
 def _resolve_config_path(filename: str = "config.json") -> Path:
-    """解析配置路径（优先CWD，否则脚本目录）"""
-    cwd_path = Path.cwd() / filename
-    if cwd_path.exists():
-        return cwd_path
-    script_dir = Path(__file__).parent
-    return script_dir / filename
+    """解析可持久化配置路径。"""
+    return resolve_data_file(filename, Path(__file__).parent)
 
 
 def get_system_language() -> str:
@@ -30,8 +27,9 @@ def get_system_language() -> str:
         windll = ctypes.windll.kernel32
         lang_id = windll.GetUserDefaultUILanguage()
 
-        # 中文语言ID: 0x0804(简体), 0x0404(繁体), 0x0C04(香港), 0x1404(澳门)
-        chinese_langs = [0x0804, 0x0404, 0x0C04, 0x1404, 0x1004, 0x0409]
+        # 中文语言ID: 0x0804(简体), 0x0404(繁体台湾), 0x0C04(香港),
+        # 0x1404(澳门), 0x1004(新加坡中文)。注意: 0x0409 是 en-US，不是中文。
+        chinese_langs = {0x0804, 0x0404, 0x0C04, 0x1404, 0x1004}
 
         if lang_id in chinese_langs:
             return "zh"
@@ -112,7 +110,11 @@ LANGUAGE_PACKS = {
         "settings_api_key": "API密钥",
         "settings_base_url": "API地址",
         "settings_model": "模型名称",
+        "settings_model_hint": "任意模型名，如 gpt-4o、claude-sonnet-4、deepseek-chat",
         "settings_format": "API格式",
+        "settings_format_openai": "OpenAI",
+        "settings_format_anthropic": "Anthropic",
+        "settings_preset_hint": "选预设可自动填入地址/模型/格式，之后仍可手动修改",
         "settings_test": "测试连接",
         "settings_hotkey": "热键配置",
         "settings_prompt": "自定义提示词",
@@ -128,13 +130,15 @@ LANGUAGE_PACKS = {
 
         # 提示信息
         "no_text": "没有文本",
-        "no_text_msg": "剪贴板为空!\n\n使用方法:\n1. 选中文本\n2. 按 Ctrl+C 复制\n3. 按热键",
+        "no_text_msg": "未获取到文本!\n\n使用方法:\n1. 选中文本\n2. 按热键\n\n为保护隐私，程序不会自动使用旧剪贴板内容。",
         "timeout": "超时",
         "timeout_msg": "未检测到文本复制\n\n请重试",
         "wait_mode": "等待模式",
         "wait_mode_msg": "请选中文本，然后按 Ctrl+C",
         "ai_error": "AI错误",
         "error": "错误",
+        "api_not_configured": "未配置 API",
+        "api_not_configured_msg": "请先在托盘菜单 → 设置 中配置 API 密钥和地址。",
 
         # 启动信息
         "start_title": "AI文本优化器",
@@ -142,9 +146,9 @@ LANGUAGE_PACKS = {
         "start_template": "当前模板",
         "start_usage": "使用方法",
         "start_step1": "1. 在任意软件中选中文本",
-        "start_step2": "2. 按 Ctrl+C 复制",
-        "start_step3": "3. 按热键触发",
-        "start_step4": "4. 查看AI分析结果",
+        "start_step2": "2. 按热键触发（会自动尝试复制选区）",
+        "start_step3": "3. 查看 AI 分析结果",
+        "start_step4": "4. 一键复制结果",
         "start_change": "更改设置",
         "start_change_tip": "右键托盘图标进行设置",
         "start_ready": "就绪",
@@ -253,7 +257,11 @@ LANGUAGE_PACKS = {
         "settings_api_key": "API Key",
         "settings_base_url": "Base URL",
         "settings_model": "Model",
+        "settings_model_hint": "Any model id, e.g. gpt-4o, claude-sonnet-4, deepseek-chat",
         "settings_format": "API Format",
+        "settings_format_openai": "OpenAI",
+        "settings_format_anthropic": "Anthropic",
+        "settings_preset_hint": "Presets fill URL/model/format; you can still edit freely",
         "settings_test": "Test Connection",
         "settings_hotkey": "Hotkey",
         "settings_prompt": "Custom Prompt",
@@ -269,13 +277,15 @@ LANGUAGE_PACKS = {
 
         # Messages
         "no_text": "No Text",
-        "no_text_msg": "Clipboard is empty!\n\nHow to use:\n1. Select text\n2. Press Ctrl+C\n3. Press hotkey",
+        "no_text_msg": "No text found!\n\nHow to use:\n1. Select text\n2. Press hotkey\n\nFor privacy, existing clipboard content is never used automatically.",
         "timeout": "Timeout",
         "timeout_msg": "No text copied\n\nPlease try again",
         "wait_mode": "Wait Mode",
         "wait_mode_msg": "Select text, then press Ctrl+C",
         "ai_error": "AI Error",
         "error": "Error",
+        "api_not_configured": "API Not Configured",
+        "api_not_configured_msg": "Open tray menu → Settings and set your API key and base URL.",
 
         # Start info
         "start_title": "AI Text Optimizer",
@@ -283,9 +293,9 @@ LANGUAGE_PACKS = {
         "start_template": "Template",
         "start_usage": "Usage",
         "start_step1": "1. Select text in any software",
-        "start_step2": "2. Press Ctrl+C to copy",
-        "start_step3": "3. Press hotkey to trigger",
-        "start_step4": "4. View AI result",
+        "start_step2": "2. Press hotkey (auto-copies selection)",
+        "start_step3": "3. View AI result",
+        "start_step4": "4. Copy result with one click",
         "start_change": "Settings",
         "start_change_tip": "Right-click tray icon for settings",
         "start_ready": "Ready",
@@ -347,13 +357,13 @@ class LanguageManager:
             if self.config_path.exists():
                 with open(self.config_path, 'r', encoding='utf-8') as f:
                     config = json.load(f)
-                    lang = config.get("general", {}).get("language", "zh")
-                    # "auto" 或无效值默认使用中文
+                    lang = config.get("general", {}).get("language", "auto")
+                    # "auto" 或无效值 → 跟随系统语言
                     if lang == "auto" or lang not in LANGUAGE_PACKS:
-                        lang = "zh"
+                        lang = get_system_language()
                     self._current_lang = lang
         except (json.JSONDecodeError, KeyError, FileNotFoundError, OSError):
-            self._current_lang = "zh"
+            self._current_lang = get_system_language()
 
     def get_lang(self) -> str:
         """获取当前语言"""

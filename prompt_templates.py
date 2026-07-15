@@ -4,21 +4,19 @@
 """
 
 import json
+import re
 from pathlib import Path
 from typing import Dict, List, Optional, Any
+from app_paths import resolve_data_file
 from logger import get_logger
 
 logger = get_logger("templates")
+_PLACEHOLDER_RE = re.compile(r'\{(text|source|language)\}')
 
 
 def _resolve_templates_path(filename: str = "prompt_templates.json") -> Path:
-    """解析模板文件路径（优先CWD以保持向后兼容，否则使用脚本目录）"""
-    cwd_path = Path.cwd() / filename
-    if cwd_path.exists():
-        return cwd_path
-    # 回退到脚本所在目录
-    script_dir = Path(__file__).parent
-    return script_dir / filename
+    """解析可持久化模板路径。"""
+    return resolve_data_file(filename, Path(__file__).parent)
 
 
 class PromptTemplate:
@@ -353,6 +351,7 @@ class PromptTemplateManager:
                 if key not in self.BUILTIN_TEMPLATES:
                     custom_templates[key] = template.to_dict()
 
+            self.templates_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.templates_path, 'w', encoding='utf-8') as f:
                 json.dump(custom_templates, f, indent=2, ensure_ascii=False)
         except Exception as e:
@@ -447,22 +446,17 @@ class PromptTemplateManager:
         if not template:
             return None
 
-        try:
-            return template.prompt.format(
-                text=text,
-                source=source,
-                language=language
-            )
-        except KeyError as e:
-            logger.warning(f"模板 '{key}' 缺少占位符: {e}")
-            # 回退：只替换已知占位符
-            result = template.prompt
-            for placeholder, value in [('{text}', text), ('{source}', source), ('{language}', language)]:
-                result = result.replace(placeholder, value)
-            return result
-        except (ValueError, AttributeError) as e:
-            logger.warning(f"模板 '{key}' 格式化错误: {e}")
+        if not isinstance(template.prompt, str):
+            logger.warning(f"模板 '{key}' 的 prompt 必须是字符串")
             return None
+
+        # 仅替换受支持的字面占位符，保留代码/JSON 中的普通花括号。
+        values = {
+            'text': "" if text is None else str(text),
+            'source': "" if source is None else str(source),
+            'language': "" if language is None else str(language),
+        }
+        return _PLACEHOLDER_RE.sub(lambda match: values[match.group(1)], template.prompt)
 
 
 # 全局实例

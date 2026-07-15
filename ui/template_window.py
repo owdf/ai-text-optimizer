@@ -1,5 +1,5 @@
 """
-提示词模板选择窗口 - 支持多语言，支持添加
+提示词模板选择窗口 - 支持多语言，支持添加 + 统一主题
 """
 
 import customtkinter as ctk
@@ -8,6 +8,10 @@ from prompt_templates import get_template_manager, PromptTemplate
 from language import t
 from icons import get_icon_manager
 from logger import get_logger
+from ui.theme import (
+    Colors, Space, Radius, Type, Size,
+    font, mono_font, apply_window_chrome, primary_button, secondary_button,
+)
 
 logger = get_logger("template_ui")
 
@@ -15,7 +19,8 @@ logger = get_logger("template_ui")
 class TemplateWindow:
     """模板选择窗口"""
 
-    def __init__(self):
+    def __init__(self, master=None):
+        self._master = master
         self._window: Optional[ctk.CTkToplevel] = None
         self._is_visible = False
         self._on_close: Optional[Callable] = None
@@ -38,10 +43,12 @@ class TemplateWindow:
         if self._window is not None:
             return
 
-        self._window = ctk.CTkToplevel()
-        self._window.title(t("template_title"))
-        self._window.geometry("700x550")
-        self._window.attributes("-topmost", True)
+        if self._master is not None:
+            self._window = ctk.CTkToplevel(self._master)
+        else:
+            self._window = ctk.CTkToplevel()
+        apply_window_chrome(self._window, t("template_title"))
+        self._window.geometry("720x560")
         self._window.resizable(True, True)
         self._window.minsize(600, 450)
 
@@ -55,159 +62,152 @@ class TemplateWindow:
             return
         sw = self._window.winfo_screenwidth()
         sh = self._window.winfo_screenheight()
-        x = (sw - 700) // 2
-        y = (sh - 550) // 2
-        self._window.geometry(f"700x550+{x}+{y}")
+        x = (sw - 720) // 2
+        y = (sh - 560) // 2
+        self._window.geometry(f"720x560+{x}+{y}")
 
     def _create_widgets(self) -> None:
         if self._window is None:
             return
 
-        main = ctk.CTkFrame(self._window, fg_color="#1e1e2e")
-        main.pack(fill="both", expand=True, padx=10, pady=10)
+        main = ctk.CTkFrame(self._window, fg_color=Colors.BG, corner_radius=0)
+        main.pack(fill="both", expand=True)
 
         # 标题栏
-        header = ctk.CTkFrame(main, fg_color="#181825", height=45)
+        header = ctk.CTkFrame(main, fg_color=Colors.SURFACE, height=52, corner_radius=0)
         header.pack(fill="x")
         header.pack_propagate(False)
 
         ctk.CTkLabel(
             header,
             text=t("template_title"),
-            font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#cba6f7"
-        ).pack(side="left", padx=15)
+            font=font(Type.TITLE, "bold"),
+            text_color=Colors.TEXT,
+        ).pack(side="left", padx=Size.WINDOW_PAD)
 
-        # 添加按钮
         ctk.CTkButton(
             header,
             text=f"+ {t('add')}",
-            font=ctk.CTkFont(size=12),
-            height=30,
-            width=80,
-            fg_color="#a6e3a1",
-            hover_color="#94e2d5",
-            text_color="#1e1e2e",
+            font=font(Type.LABEL, "bold"),
+            height=Size.BTN_H_SM,
+            width=90,
+            fg_color=Colors.SUCCESS,
+            hover_color=Colors.SUCCESS_HOVER,
+            text_color=Colors.TEXT_INVERSE,
             command=self._on_add_click,
-            corner_radius=6
-        ).pack(side="right", padx=15)
+            corner_radius=Radius.MD,
+        ).pack(side="right", padx=Size.WINDOW_PAD, pady=Space.SM)
 
         # 内容区域
         content = ctk.CTkFrame(main, fg_color="transparent")
-        content.pack(fill="both", expand=True, padx=10, pady=10)
+        content.pack(fill="both", expand=True, padx=Size.WINDOW_PAD, pady=Space.MD)
 
         # 左侧：模板列表
-        left_frame = ctk.CTkFrame(content, fg_color="#181825", width=250, corner_radius=8)
-        left_frame.pack(side="left", fill="y", padx=(0, 10))
+        left_frame = ctk.CTkFrame(
+            content, fg_color=Colors.SURFACE, width=260, corner_radius=Radius.MD,
+            border_width=1, border_color=Colors.BORDER,
+        )
+        left_frame.pack(side="left", fill="y", padx=(0, Space.MD))
         left_frame.pack_propagate(False)
 
         ctk.CTkLabel(
             left_frame,
             text=t("template_list"),
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#89b4fa"
-        ).pack(padx=15, pady=(10, 5))
+            font=font(Type.BODY, "bold"),
+            text_color=Colors.PRIMARY,
+        ).pack(padx=Size.SECTION_PAD_X, pady=(Space.MD, Space.SM), anchor="w")
 
-        self._template_list = ctk.CTkScrollableFrame(left_frame, fg_color="transparent")
-        self._template_list.pack(fill="both", expand=True, padx=5, pady=5)
+        self._template_list = ctk.CTkScrollableFrame(
+            left_frame, fg_color="transparent",
+            scrollbar_button_color=Colors.SURFACE_MUTED,
+            scrollbar_button_hover_color=Colors.SURFACE_HOVER,
+        )
+        self._template_list.pack(fill="both", expand=True, padx=Space.SM, pady=Space.SM)
 
         # 右侧：预览
-        right_frame = ctk.CTkFrame(content, fg_color="#181825", corner_radius=8)
+        right_frame = ctk.CTkFrame(
+            content, fg_color=Colors.SURFACE, corner_radius=Radius.MD,
+            border_width=1, border_color=Colors.BORDER,
+        )
         right_frame.pack(side="right", fill="both", expand=True)
 
         preview_header = ctk.CTkFrame(right_frame, fg_color="transparent")
-        preview_header.pack(fill="x", padx=15, pady=(10, 5))
+        preview_header.pack(fill="x", padx=Size.SECTION_PAD_X, pady=(Space.MD, Space.SM))
 
         ctk.CTkLabel(
             preview_header,
             text=t("template_preview"),
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#a6e3a1"
+            font=font(Type.BODY, "bold"),
+            text_color=Colors.ACCENT_PROMPT,
         ).pack(side="left")
 
-        # 操作按钮
         btn_frame = ctk.CTkFrame(preview_header, fg_color="transparent")
         btn_frame.pack(side="right")
 
         self._edit_btn = ctk.CTkButton(
             btn_frame,
             text=t("edit"),
-            font=ctk.CTkFont(size=11),
-            height=25,
-            width=60,
-            fg_color="#585b70",
-            hover_color="#45475a",
+            font=font(Type.HINT),
+            height=32,
+            width=64,
+            fg_color=Colors.BTN_SECONDARY,
+            hover_color=Colors.BTN_SECONDARY_HOVER,
+            text_color=Colors.TEXT,
             command=self._on_edit_click,
-            corner_radius=4,
-            state="disabled"
+            corner_radius=Radius.SM,
+            state="disabled",
         )
         self._edit_btn.pack(side="left", padx=2)
 
         self._delete_btn = ctk.CTkButton(
             btn_frame,
             text=t("delete"),
-            font=ctk.CTkFont(size=11),
-            height=25,
-            width=60,
-            fg_color="#f38ba8",
-            hover_color="#eba0ac",
-            text_color="#1e1e2e",
+            font=font(Type.HINT),
+            height=32,
+            width=64,
+            fg_color=Colors.DANGER,
+            hover_color=Colors.DANGER_HOVER,
+            text_color=Colors.TEXT_INVERSE,
             command=self._on_delete_click,
-            corner_radius=4,
-            state="disabled"
+            corner_radius=Radius.SM,
+            state="disabled",
         )
         self._delete_btn.pack(side="left", padx=2)
 
-        # 预览文本
         self._preview_text = ctk.CTkTextbox(
             right_frame,
-            font=ctk.CTkFont(size=12, family="Consolas"),
+            font=mono_font(Type.BODY),
             wrap="word",
             state="disabled",
-            fg_color="#11111b",
-            text_color="#cdd6f4"
+            fg_color=Colors.INPUT_BG,
+            text_color=Colors.TEXT,
+            corner_radius=Radius.SM,
+            border_width=0,
         )
-        self._preview_text.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+        self._preview_text.pack(fill="both", expand=True, padx=Size.SECTION_PAD_X, pady=(0, Space.MD))
 
         # 底部按钮
-        footer = ctk.CTkFrame(main, fg_color="transparent", height=40)
-        footer.pack(fill="x", padx=10, pady=(0, 10))
+        footer = ctk.CTkFrame(
+            main, fg_color=Colors.SURFACE, height=56, corner_radius=0,
+            border_width=1, border_color=Colors.BORDER,
+        )
+        footer.pack(fill="x", side="bottom")
         footer.pack_propagate(False)
 
-        self._select_btn = ctk.CTkButton(
-            footer,
-            text=t("template_use"),
-            font=ctk.CTkFont(size=13),
-            height=35,
-            width=120,
-            fg_color="#89b4fa",
-            hover_color="#74c7ec",
-            text_color="#1e1e2e",
-            command=self._on_use_click,
-            corner_radius=6,
-            state="disabled"
+        self._select_btn = primary_button(
+            footer, t("template_use"), self._on_use_click, width=130
         )
-        self._select_btn.pack(side="left")
-
-        ctk.CTkButton(
-            footer,
-            text=t("close"),
-            font=ctk.CTkFont(size=13),
-            height=35,
-            width=80,
-            fg_color="#585b70",
-            hover_color="#45475a",
-            command=self._on_window_close,
-            corner_radius=6
-        ).pack(side="right")
+        self._select_btn.configure(state="disabled", height=Size.BTN_H_SM)
+        self._select_btn.pack(side="left", padx=Size.WINDOW_PAD, pady=Space.SM)
 
         self._selected_label = ctk.CTkLabel(
-            footer,
-            text="",
-            font=ctk.CTkFont(size=11),
-            text_color="#a6adc8"
+            footer, text="", font=font(Type.HINT), text_color=Colors.TEXT_SECONDARY
         )
-        self._selected_label.pack(side="left", padx=15)
+        self._selected_label.pack(side="left", padx=Space.MD)
+
+        close_btn = secondary_button(footer, t("close"), self._on_window_close, width=90)
+        close_btn.configure(height=Size.BTN_H_SM)
+        close_btn.pack(side="right", padx=Size.WINDOW_PAD, pady=Space.SM)
 
     def _load_templates(self):
         """加载模板列表"""
@@ -241,12 +241,12 @@ class TemplateWindow:
             cat_display = cat_names.get(cat, cat.upper())
             cat_label = ctk.CTkLabel(
                 self._template_list,
-                text=f"[{cat_display}]",
-                font=ctk.CTkFont(size=11, weight="bold"),
-                text_color="#f9e2af",
-                anchor="w"
+                text=f"  {cat_display}",
+                font=font(Type.HINT, "bold"),
+                text_color=Colors.WARNING,
+                anchor="w",
             )
-            cat_label.pack(fill="x", padx=5, pady=(8, 2))
+            cat_label.pack(fill="x", padx=Space.SM, pady=(Space.SM, Space.XS))
 
             for key, template in items:
                 self._create_template_item(key, template)
@@ -255,11 +255,11 @@ class TemplateWindow:
         """创建模板列表项"""
         item_frame = ctk.CTkFrame(
             self._template_list,
-            fg_color="#313244",
-            corner_radius=6,
-            height=35
+            fg_color=Colors.SURFACE_MUTED,
+            corner_radius=Radius.SM,
+            height=40,
         )
-        item_frame.pack(fill="x", padx=5, pady=2)
+        item_frame.pack(fill="x", padx=Space.SM, pady=2)
         item_frame.pack_propagate(False)
 
         display_name = template.get_display_name()
@@ -267,24 +267,26 @@ class TemplateWindow:
         name_label = ctk.CTkLabel(
             item_frame,
             text=display_name,
-            font=ctk.CTkFont(size=12),
-            text_color="#cdd6f4",
-            anchor="w"
+            font=font(Type.LABEL),
+            text_color=Colors.TEXT,
+            anchor="w",
         )
-        name_label.pack(side="left", fill="x", expand=True, padx=10)
+        name_label.pack(side="left", fill="x", expand=True, padx=Space.MD)
 
-        def on_click(e=None, k=key, t=template):
-            self._select_template(k, t)
+        def on_click(e=None, k=key, tpl=template):
+            self._select_template(k, tpl)
 
         item_frame.bind("<Button-1>", on_click)
         name_label.bind("<Button-1>", on_click)
 
         def on_enter(e=None):
-            item_frame.configure(fg_color="#45475a")
+            item_frame.configure(fg_color=Colors.SURFACE_HOVER)
 
         def on_leave(e=None):
             if self._current_key != key:
-                item_frame.configure(fg_color="#313244")
+                item_frame.configure(fg_color=Colors.SURFACE_MUTED)
+            else:
+                item_frame.configure(fg_color=Colors.PRIMARY_SOFT)
 
         item_frame.bind("<Enter>", on_enter)
         item_frame.bind("<Leave>", on_leave)
@@ -310,7 +312,8 @@ class TemplateWindow:
             self._delete_btn.configure(state="normal")
 
         display_name = template.get_display_name()
-        self._selected_label.configure(text=f"{t('template_selected')}: {display_name}")
+        if self._selected_label is not None:
+            self._selected_label.configure(text=f"{t('template_selected')}: {display_name}")
 
     def _on_use_click(self):
         """使用模板"""
@@ -362,7 +365,8 @@ class TemplateWindow:
 
         # 创建新窗口
         logger.info("创建新编辑窗口")
-        self._edit_window = ctk.CTkToplevel()
+        parent = self._window or self._master
+        self._edit_window = ctk.CTkToplevel(parent) if parent is not None else ctk.CTkToplevel()
         self._edit_window.title(t("template_edit") if is_edit else t("template_add"))
         self._edit_window.geometry("600x600")
         self._edit_window.attributes("-topmost", True)
@@ -602,8 +606,10 @@ Please provide your analysis.""")
 
 _template_window = None
 
-def get_template_window():
+def get_template_window(master=None):
     global _template_window
     if _template_window is None:
-        _template_window = TemplateWindow()
+        _template_window = TemplateWindow(master=master)
+    elif master is not None:
+        _template_window._master = master
     return _template_window

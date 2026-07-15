@@ -71,7 +71,7 @@ This means you don't need to manually pick a template — the tool figures out w
 | Claude | claude-3-opus/sonnet | Anthropic |
 | Ollama | llama3, codellama, mistral | Local, free |
 
-Any service compatible with OpenAI's `/v1/chat/completions` endpoint works.
+Any service compatible with OpenAI's `/v1/chat/completions` endpoint works. Remote custom services must use HTTPS; HTTP is allowed only for loopback hosts.
 
 ### Built-in Templates
 
@@ -118,7 +118,7 @@ Edit `config.json`:
 ```json
 {
   "ai_service": {
-    "provider": "openai_compatible",
+    "provider": "openai",
     "api_key": "your-api-key",
     "base_url": "https://api.openai.com/v1",
     "model": "gpt-4"
@@ -128,6 +128,8 @@ Edit `config.json`:
   }
 }
 ```
+
+Packaged builds store configuration, custom templates, and logs in `%LOCALAPPDATA%\AITextOptimizer`. An existing `config.json` beside the executable is treated as a portable configuration.
 
 Or right-click the tray icon → Settings after launch.
 
@@ -197,7 +199,7 @@ MIT License
 
 ## Disclaimer
 
-You need your own API key for AI services. Keep it safe — `config.json` is gitignored. Never commit API keys to public repositories.
+You need your own API key for AI services. Keep it safe — source-tree `config.json` is gitignored. Never commit API keys to public repositories. For privacy, existing clipboard content is never uploaded when no text is selected.
 
 ---
 

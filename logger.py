@@ -7,13 +7,14 @@ import logging
 import sys
 from pathlib import Path
 from typing import Optional
+from app_paths import resolve_log_dir
 
 # 默认日志格式
 _LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 _LOG_DATE_FORMAT = "%H:%M:%S"
 
-# 日志文件路径（相对于脚本目录）
-_LOG_DIR = Path(__file__).parent / "logs"
+# 日志文件路径（打包后位于持久化用户目录）
+_LOG_DIR = resolve_log_dir(Path(__file__).parent)
 _LOG_FILE = _LOG_DIR / "app.log"
 
 # 全局 logger 缓存
@@ -21,8 +22,12 @@ _loggers: dict = {}
 _initialized = False
 
 
-def _init_logging(level: int = logging.INFO, log_to_file: bool = True) -> None:
-    """初始化日志系统"""
+def _init_logging(level: int = logging.INFO, log_to_file: bool = False) -> None:
+    """初始化日志系统。
+
+    默认只输出到控制台；文件日志由 enable_file_logging / 配置
+    general.enable_logging 再开启。
+    """
     global _initialized
     if _initialized:
         return
@@ -41,7 +46,7 @@ def _init_logging(level: int = logging.INFO, log_to_file: bool = True) -> None:
     console.setFormatter(logging.Formatter(_LOG_FORMAT, _LOG_DATE_FORMAT))
     root.addHandler(console)
 
-    # 文件 handler
+    # 文件 handler（默认关闭，尊重 enable_logging=false）
     if log_to_file:
         try:
             _LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -88,6 +93,7 @@ def enable_file_logging(enabled: bool) -> None:
     for handler in root.handlers[:]:
         if isinstance(handler, logging.FileHandler):
             root.removeHandler(handler)
+            handler.close()
 
     if enabled:
         try:

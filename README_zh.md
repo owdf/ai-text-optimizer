@@ -69,7 +69,7 @@
 | Claude | claude-3-opus/sonnet | Anthropic |
 | Ollama | llama3、codellama、mistral | 本地部署，免费 |
 
-任何兼容 OpenAI `/v1/chat/completions` 接口的服务均可接入。
+任何兼容 OpenAI `/v1/chat/completions` 接口的服务均可接入。远程自定义服务必须使用 HTTPS；本机回环地址可使用 HTTP。
 
 ### 内置提示词模板
 
@@ -116,7 +116,7 @@ cp config.example.json config.json
 ```json
 {
   "ai_service": {
-    "provider": "openai_compatible",
+    "provider": "openai",
     "api_key": "你的API密钥",
     "base_url": "https://api.openai.com/v1",
     "model": "gpt-4"
@@ -126,6 +126,8 @@ cp config.example.json config.json
   }
 }
 ```
+
+打包后的 EXE 会将配置、自定义模板和日志保存在 `%LOCALAPPDATA%\AITextOptimizer`；若 EXE 同目录已经存在 `config.json`，则使用该便携配置。
 
 也可以启动后右键托盘图标 → 设置，通过图形界面配置。
 
@@ -195,7 +197,7 @@ MIT License
 
 ## 免责声明
 
-本工具需要用户自行提供 AI 服务的 API 密钥。请妥善保管你的密钥，不要将其提交到公开仓库。`config.json` 已加入 `.gitignore`。
+本工具需要用户自行提供 AI 服务的 API 密钥。请妥善保管你的密钥，不要将其提交到公开仓库。源码目录中的 `config.json` 已加入 `.gitignore`。为保护隐私，无选区时程序不会自动上传旧剪贴板内容。
 
 ---
 

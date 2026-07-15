@@ -18,7 +18,7 @@ class TestConfig:
 
         try:
             cfg = Config(tmp_path)
-            assert cfg.get("ai_service.provider") == "openai_compatible"
+            assert cfg.get("ai_service.provider") in ("openai", "openai_compatible")
             assert cfg.get("hotkey.trigger") == "ctrl+shift+q"
             assert cfg.get("ui.theme") == "dark"
         finally:
@@ -93,6 +93,35 @@ class TestConfig:
 
             cfg.set("ai_service.api_key", "test-key")
             assert cfg.is_api_configured()
+
+            # 本地 Ollama 允许空 key
+            cfg.set("ai_service.api_key", "")
+            cfg.set("ai_service.base_url", "http://localhost:11434/v1")
+            assert cfg.is_api_configured()
+
+            # Hostname/query substrings must not impersonate a loopback service.
+            cfg.set("ai_service.base_url", "https://localhost.evil.example/v1")
+            assert not cfg.is_api_configured()
+            cfg.set("ai_service.base_url", "https://evil.example/v1?next=127.0.0.1")
+            assert not cfg.is_api_configured()
+
+            # Plain HTTP is only permitted for exact loopback hosts.
+            cfg.set("ai_service.api_key", "test-key")
+            cfg.set("ai_service.base_url", "http://api.example.com/v1")
+            assert not cfg.is_api_configured()
+        finally:
+            Path(tmp_path).unlink(missing_ok=True)
+
+    def test_extra_prompt(self):
+        """测试 prompts.extra 读写"""
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
+            tmp_path = f.name
+
+        try:
+            cfg = Config(tmp_path)
+            assert cfg.get_prompt("extra") in ("", None) or cfg.get_prompt("extra") == ""
+            cfg.set_prompt("extra", "be concise")
+            assert cfg.get_prompt("extra") == "be concise"
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
