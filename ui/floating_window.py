@@ -41,6 +41,7 @@ class FloatingWindow:
         self._is_visible = False
         self._on_close: Optional[Callable] = None
         self._on_copy: Optional[Callable[[str], None]] = None
+        self._on_refine: Optional[Callable[[str], None]] = None
         self._icons = get_icon_manager()
 
         self._app_label = None
@@ -53,6 +54,8 @@ class FloatingWindow:
         self._status_label = None
         self._orig_header_label = None
         self._result_header_label = None
+        self._result_meta_label = None
+        self._refine_buttons = {}
 
     def set_master(self, master) -> None:
         """绑定主 Tk 根窗口，避免 withdraw 后 Toplevel 不显示"""
@@ -205,6 +208,31 @@ class FloatingWindow:
         )
         self._result_header_label.pack(side="left")
 
+        self._result_meta_label = ctk.CTkLabel(
+            result_header,
+            text="",
+            font=font(Type.CAPTION),
+            text_color=Colors.TEXT_SECONDARY,
+        )
+        self._result_meta_label.pack(side="right")
+
+        refine_row = ctk.CTkFrame(result_frame, fg_color="transparent")
+        refine_row.pack(fill="x", padx=Space.MD, pady=(0, Space.SM))
+        for action, label_key in (
+            ("shorter", "refine_shorter"),
+            ("clearer", "refine_clearer"),
+            ("actionable", "refine_actionable"),
+        ):
+            button = secondary_button(
+                refine_row,
+                t(label_key),
+                lambda selected=action: self._on_refine_click(selected),
+                width=98,
+            )
+            button.configure(height=Size.BTN_H_SM, state="disabled")
+            button.pack(side="left", padx=(0, Space.SM))
+            self._refine_buttons[action] = button
+
         self._result_text = ctk.CTkTextbox(
             result_frame,
             font=mono_font(Type.BODY),
@@ -270,6 +298,9 @@ class FloatingWindow:
 
         self._set_text(self._original_text, original_text)
         self._set_text(self._result_text, result_text)
+        if self._result_meta_label:
+            self._result_meta_label.configure(text="")
+        self._set_refine_enabled(False)
 
         # 强制置顶显示（Windows 上 withdraw 根窗口后需多次激活）
         self._window.deiconify()
@@ -361,6 +392,21 @@ class FloatingWindow:
             if self._window:
                 self._window.after(2000, lambda: self._set_status(""))
 
+    def _on_refine_click(self, action: str):
+        if self._on_refine:
+            self._on_refine(action)
+
+    def _set_refine_enabled(self, enabled: bool):
+        state = "normal" if enabled else "disabled"
+        for button in self._refine_buttons.values():
+            button.configure(state=state)
+
+    def show_refining(self, action: str):
+        if self._window:
+            self._set_text(self._result_text, t("refining"))
+            self._set_refine_enabled(False)
+            self._set_status(t("refining"), "info")
+
     def _on_window_close(self):
         self.hide()
         if self._on_close:
@@ -372,13 +418,42 @@ class FloatingWindow:
     def set_on_copy(self, callback):
         self._on_copy = callback
 
+    def set_on_refine(self, callback):
+        self._on_refine = callback
+
     def is_visible(self):
         return self._is_visible
 
-    def update_result(self, text):
+    def update_result(self, text, metrics=None, protection_count: int = 0):
         if self._window:
             self._set_text(self._result_text, text)
+            details = []
+            if metrics is not None:
+                details.append(
+                    t("change_summary").format(
+                        changed=metrics.changed_percent,
+                        char_delta=metrics.character_delta,
+                    )
+                )
+            if protection_count:
+                details.append(t("privacy_protected").format(count=protection_count))
+            if self._result_meta_label:
+                self._result_meta_label.configure(text=" · ".join(details))
+            self._set_refine_enabled(bool(text))
+            self._set_status("")
             # 结果更新时也确保窗口可见
+            if not self._is_visible:
+                self._window.deiconify()
+                self._is_visible = True
+            self._window.lift()
+
+    def update_error(self, text):
+        if self._window:
+            self._set_text(self._result_text, text)
+            if self._result_meta_label:
+                self._result_meta_label.configure(text="")
+            self._set_refine_enabled(False)
+            self._set_status(t("error"), "error")
             if not self._is_visible:
                 self._window.deiconify()
                 self._is_visible = True

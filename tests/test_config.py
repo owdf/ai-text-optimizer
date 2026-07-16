@@ -21,6 +21,7 @@ class TestConfig:
             assert cfg.get("ai_service.provider") in ("openai", "openai_compatible")
             assert cfg.get("hotkey.trigger") == "ctrl+shift+q"
             assert cfg.get("ui.theme") == "dark"
+            assert cfg.get("privacy.enabled") is True
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 

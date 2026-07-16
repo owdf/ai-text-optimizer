@@ -24,6 +24,8 @@ from context_analyzer import get_context_analyzer
 from hotkey import get_hotkey_listener, stop_hotkey_listener
 from language import t, get_lang_manager
 from text_cleaner import clean_markdown  # [优化] 移到顶部，避免运行时导入
+from change_metrics import calculate_change_metrics
+from privacy_shield import ProtectionSummary, get_privacy_shield
 from ui import (
     get_floating_window, SettingsWindow, get_tray_icon, stop_tray_icon,
     get_hotkey_window, get_template_window
@@ -31,6 +33,30 @@ from ui import (
 from logger import get_logger
 
 logger = get_logger("main")
+
+
+_REFINEMENT_INSTRUCTIONS = {
+    "shorter": (
+        "Rewrite the text to be materially shorter while preserving every fact, "
+        "number, constraint, and technical identifier. Return only the revised text."
+    ),
+    "clearer": (
+        "Rewrite the text for maximum clarity and scanability. Preserve meaning, "
+        "facts, numbers, constraints, and technical identifiers. Return only the revised text."
+    ),
+    "actionable": (
+        "Turn the text into a concise, prioritized action plan. Keep every command, fact, "
+        "constraint, warning, and technical identifier intact. Return only the action plan."
+    ),
+}
+
+
+def build_refinement_prompt(action: str, text: str) -> str:
+    """Build a constrained follow-up prompt for one-click refinement."""
+    instruction = _REFINEMENT_INSTRUCTIONS.get(action)
+    if instruction is None:
+        raise ValueError(f"Unknown refinement action: {action}")
+    return f"{instruction}\n\nText to refine:\n{text}"
 
 
 class AITextOptimizer:
@@ -43,6 +69,7 @@ class AITextOptimizer:
         self.context_analyzer = get_context_analyzer()
         self.template_mgr = get_template_manager()
         self.lang_mgr = get_lang_manager()
+        self.privacy_shield = get_privacy_shield()
 
         self.settings_window = None
         self.hotkey_window = None
@@ -67,6 +94,8 @@ class AITextOptimizer:
         self._processing_lock = threading.Lock()
         self._ui_queue = Queue()
         self._shutting_down = False
+        self._last_original = ""
+        self._last_response = ""
 
     # content_type → 默认模板
     _CONTENT_TEMPLATE_MAP = {
@@ -79,6 +108,7 @@ class AITextOptimizer:
 
     def _setup_callbacks(self):
         self.floating_window.set_on_copy(self._copy_to_clipboard)
+        self.floating_window.set_on_refine(self._refine_result)
         self.tray_icon.set_on_settings(self._show_settings)
         self.tray_icon.set_on_hotkey_settings(self._show_hotkey_settings)
         self.tray_icon.set_on_templates(self._show_templates)
@@ -292,6 +322,24 @@ class AITextOptimizer:
 
         threading.Thread(target=self._call_ai, args=(text, context, analysis), daemon=True).start()
 
+    def _protect_outbound(self, prompt: str):
+        """Apply default-on local redaction immediately before an API call."""
+        if not bool(self.config.get("privacy.enabled", True)):
+            return ProtectionSummary(prompt, {}, {})
+        protected = self.privacy_shield.protect(prompt)
+        if protected.total:
+            logger.info(f"Privacy Shield protected {protected.total} sensitive item(s)")
+        return protected
+
+    @staticmethod
+    def _placeholder_instruction(protection) -> str:
+        if not protection.total:
+            return ""
+        return (
+            " Sensitive values were replaced locally with placeholders beginning with "
+            "__ATO_. Preserve every such placeholder exactly, including underscores."
+        )
+
     def _call_ai(self, text: str, context, analysis):
         logger.info("调用AI...")
         try:
@@ -315,21 +363,25 @@ class AITextOptimizer:
             elif extra:
                 prompt = f"{prompt}\n\n额外指令:\n{extra}"
 
+            protection = self._protect_outbound(prompt)
             messages = [
                 {
                     "role": "system",
                     "content": (
                         "你是一个专业的技术助手。请用纯文本回答，不要使用Markdown格式。"
                         "不要重复用户发送的原文内容，只输出你的分析和建议。"
+                        + self._placeholder_instruction(protection)
                     ),
                 },
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": protection.protected_text},
             ]
-            response = clean_markdown(self.ai_service.chat(messages))
+            response = protection.restore(clean_markdown(self.ai_service.chat(messages)))
             result = {
                 "context": context,
                 "analysis": analysis,
                 "response": response,
+                "original": text,
+                "protection_count": protection.total,
             }
 
             logger.info("AI调用完成")
@@ -349,10 +401,65 @@ class AITextOptimizer:
 
     def _update_result(self, result: dict):
         response = result.get("response", "No response")
-        self.floating_window.update_result(response)
+        original = result.get("original", self._last_original)
+        self._last_original = original
+        self._last_response = response
+        metrics = calculate_change_metrics(original, response)
+        self.floating_window.update_result(
+            response,
+            metrics=metrics,
+            protection_count=result.get("protection_count", 0),
+        )
+
+    def _refine_result(self, action: str):
+        """Run a constrained follow-up against the visible result."""
+        with self._processing_lock:
+            if self._processing or not self._last_response:
+                return
+            self._processing = True
+
+        self.floating_window.show_refining(action)
+        threading.Thread(
+            target=self._call_refinement,
+            args=(action, self._last_response, self._last_original),
+            daemon=True,
+        ).start()
+
+    def _call_refinement(self, action: str, text: str, original: str):
+        try:
+            prompt = build_refinement_prompt(action, text)
+            protection = self._protect_outbound(prompt)
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a precise editing assistant. Never invent facts or silently "
+                        "remove constraints. Use plain text only."
+                        + self._placeholder_instruction(protection)
+                    ),
+                },
+                {"role": "user", "content": protection.protected_text},
+            ]
+            response = protection.restore(clean_markdown(self.ai_service.chat(messages)))
+            self._post_to_ui(
+                self._update_result,
+                {
+                    "response": response,
+                    "original": original,
+                    "protection_count": protection.total,
+                },
+            )
+        except AIServiceError as e:
+            self._post_to_ui(self._update_error, f"{t('ai_error')}: {str(e)}")
+        except Exception as e:
+            logger.error(f"Refinement failed: {e}\n{traceback.format_exc()}")
+            self._post_to_ui(self._update_error, f"{t('error')}: {str(e)}")
+        finally:
+            with self._processing_lock:
+                self._processing = False
 
     def _update_error(self, error_msg: str):
-        self.floating_window.update_result(error_msg)
+        self.floating_window.update_error(error_msg)
 
     def _request_quit(self):
         self._post_to_ui(self._quit)
