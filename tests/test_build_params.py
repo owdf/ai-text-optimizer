@@ -52,3 +52,23 @@ def test_executable_uses_portable_ascii_name():
 
     name_index = mod.PARAMS.index("--name") + 1
     assert mod.PARAMS[name_index] == "AITextOptimizer"
+
+
+def test_build_console_output_is_ascii(monkeypatch, capsys):
+    """The default GitHub Windows console uses a legacy code page."""
+    import importlib.util
+    from types import SimpleNamespace
+
+    root = Path(__file__).resolve().parents[1]
+    path = root / "build.py"
+    spec = importlib.util.spec_from_file_location("build_output_mod", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    monkeypatch.setattr(
+        mod.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(returncode=0),
+    )
+    assert mod.main() == 0
+    capsys.readouterr().out.encode("ascii")

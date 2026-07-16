@@ -37,7 +37,7 @@ PARAMS = [
 
 def main():
     print("=" * 50)
-    print("  AI文本优化器 - PyInstaller 打包")
+    print("  AI Text Optimizer - PyInstaller build")
     print("=" * 50)
 
     # 检查 PyInstaller 是否安装
@@ -47,22 +47,22 @@ def main():
             capture_output=True, check=True
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print("\n[ERROR] 需要安装 PyInstaller:")
+        print("\n[ERROR] PyInstaller is required:")
         print("  pip install pyinstaller")
         return 1
 
-    print(f"\n[INFO] 开始打包...")
-    print(f"[INFO] 入口: main.py")
-    print(f"[INFO] 输出: dist/AITextOptimizer.exe\n")
+    print("\n[INFO] Starting build...")
+    print("[INFO] Entry point: main.py")
+    print("[INFO] Output: dist/AITextOptimizer.exe\n")
 
     result = subprocess.run(PARAMS, cwd=str(ROOT))
 
     if result.returncode == 0:
         exe_path = ROOT / "dist" / "AITextOptimizer.exe"
-        print(f"\n[SUCCESS] 打包完成!")
-        print(f"[SUCCESS] 输出文件: {exe_path}")
+        print("\n[SUCCESS] Build completed.")
+        print(f"[SUCCESS] Output file: {exe_path}")
     else:
-        print(f"\n[FAILED] 打包失败，返回码: {result.returncode}")
+        print(f"\n[FAILED] Build exited with code {result.returncode}.")
 
     return result.returncode
 
