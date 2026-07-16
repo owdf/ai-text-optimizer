@@ -18,8 +18,37 @@ def test_add_data_separator():
     spec.loader.exec_module(mod)
     assert mod._DATA_SEP == sep
     joined = " ".join(mod.PARAMS)
-    assert f"prompt_templates.json{sep}." in joined
     assert f"config.example.json{sep}." in joined
-    # 旧 bug：两边都是 :
+    # 旧 bug：Windows 上错误使用了 ':' 分隔符。
     if sys.platform == "win32":
-        assert "prompt_templates.json:." not in joined
+        assert "config.example.json:." not in joined
+
+
+def test_packaged_data_sources_exist():
+    """PyInstaller 的 --add-data 源文件必须真实存在。"""
+    import importlib.util
+
+    root = Path(__file__).resolve().parents[1]
+    path = root / "build.py"
+    spec = importlib.util.spec_from_file_location("build_data_mod", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    for index, arg in enumerate(mod.PARAMS):
+        if arg != "--add-data":
+            continue
+        source = mod.PARAMS[index + 1].split(mod._DATA_SEP, 1)[0]
+        assert (root / source).is_file(), f"Missing packaged data file: {source}"
+
+
+def test_executable_uses_portable_ascii_name():
+    import importlib.util
+
+    root = Path(__file__).resolve().parents[1]
+    path = root / "build.py"
+    spec = importlib.util.spec_from_file_location("build_name_mod", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    name_index = mod.PARAMS.index("--name") + 1
+    assert mod.PARAMS[name_index] == "AITextOptimizer"

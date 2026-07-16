@@ -20,9 +20,8 @@ PARAMS = [
     sys.executable, "-m", "PyInstaller",
     "--onefile",                     # 打包成单个 exe
     "--windowed",                    # 无控制台窗口
-    "--name", "AI文本优化器",
+    "--name", "AITextOptimizer",
     "--icon", "NONE",                # 无外部图标，使用内置
-    "--add-data", f"prompt_templates.json{_DATA_SEP}.",
     "--add-data", f"config.example.json{_DATA_SEP}.",
     "--hidden-import", "pystray._win32",
     "--hidden-import", "PIL._imagingtk",
@@ -54,12 +53,12 @@ def main():
 
     print(f"\n[INFO] 开始打包...")
     print(f"[INFO] 入口: main.py")
-    print(f"[INFO] 输出: dist/AI文本优化器.exe\n")
+    print(f"[INFO] 输出: dist/AITextOptimizer.exe\n")
 
     result = subprocess.run(PARAMS, cwd=str(ROOT))
 
     if result.returncode == 0:
-        exe_path = ROOT / "dist" / "AI文本优化器.exe"
+        exe_path = ROOT / "dist" / "AITextOptimizer.exe"
         print(f"\n[SUCCESS] 打包完成!")
         print(f"[SUCCESS] 输出文件: {exe_path}")
     else:

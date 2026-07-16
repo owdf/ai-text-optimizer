@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="260" viewBox="0 0 1200 260" role="img" aria-labelledby="title desc">
+  <title id="title">AI Text Optimizer workflow</title>
+  <desc id="desc">Select text, press the global hotkey, detect context, call the configured AI provider, and copy the result.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#111827"/>
+      <stop offset="1" stop-color="#1f2937"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000" flood-opacity=".24"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="260" rx="28" fill="url(#bg)"/>
+  <text x="56" y="52" fill="#f9fafb" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">One hotkey. Any Windows app. Your AI provider.</text>
+  <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle" filter="url(#shadow)">
+    <g transform="translate(48 92)">
+      <rect width="184" height="106" rx="18" fill="#0f766e"/>
+      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">1. Select text</text>
+      <text x="92" y="76" fill="#ccfbf1" font-size="14">Editor · browser · terminal</text>
+    </g>
+    <g transform="translate(278 92)">
+      <rect width="184" height="106" rx="18" fill="#1d4ed8"/>
+      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">2. Press hotkey</text>
+      <text x="92" y="76" fill="#dbeafe" font-size="14">Ctrl + Shift + Q</text>
+    </g>
+    <g transform="translate(508 92)">
+      <rect width="184" height="106" rx="18" fill="#7c3aed"/>
+      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">3. Detect context</text>
+      <text x="92" y="76" fill="#ede9fe" font-size="14">App · content · language</text>
+    </g>
+    <g transform="translate(738 92)">
+      <rect width="184" height="106" rx="18" fill="#b45309"/>
+      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">4. Ask your AI</text>
+      <text x="92" y="76" fill="#fef3c7" font-size="14">Cloud API or local Ollama</text>
+    </g>
+    <g transform="translate(968 92)">
+      <rect width="184" height="106" rx="18" fill="#be123c"/>
+      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">5. Copy result</text>
+      <text x="92" y="76" fill="#ffe4e6" font-size="14">Stay in the current app</text>
+    </g>
+  </g>
+  <g fill="#94a3b8">
+    <path d="M242 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
+    <path d="M472 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
+    <path d="M702 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
+    <path d="M932 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
+  </g>
+</svg>

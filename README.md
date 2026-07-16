@@ -1,119 +1,79 @@
-<p align="center">
-<h1 align="center">AI Text Optimizer</h1>
-</p>
-<p align="center">
-  <a href="https://img.shields.io/badge/version-v1.0.1-blue">
-    <img alt="version" src="https://img.shields.io/badge/version-v1.0.1-blue?color=009922" />
-  </a>
-  <a>
-    <img alt="platform" src="https://img.shields.io/badge/platform-Windows-blue?color=0078D6" />
-  </a>
-  <a>
-    <img alt="license" src="https://img.shields.io/badge/license-MIT-red" />
-  </a>
-  <a>
-    <img alt="PRs-Welcome" src="https://img.shields.io/badge/PRs-Welcome-green" />
-  </a>
-  <br />
-</p>
-
 <div align="center">
-<p align="center">
-  <a href="#motivation">Motivation</a>/
-  <a href="#design">Design</a>/
-  <a href="#quick-start">Quick Start</a>/
-  <a href="#structure">Structure</a>/
-  <a href="#faq">FAQ</a>
-</p>
+
+# AI Text Optimizer
+
+**A Windows tray assistant that sends selected text to your preferred AI with one global hotkey.**
+
+[![CI](https://github.com/owdf/ai-text-optimizer/actions/workflows/ci.yml/badge.svg)](https://github.com/owdf/ai-text-optimizer/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/owdf/ai-text-optimizer?display_name=tag)](https://github.com/owdf/ai-text-optimizer/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6)](#requirements)
+[![License](https://img.shields.io/github/license/owdf/ai-text-optimizer)](LICENSE)
+
+[Download for Windows](https://github.com/owdf/ai-text-optimizer/releases/latest) · [中文文档](README_zh.md) · [Report a bug](https://github.com/owdf/ai-text-optimizer/issues/new)
+
 </div>
 
-> [中文文档](README_zh.md)
+![Select text, press a hotkey, detect context, ask your AI provider, and copy the result](docs/workflow.svg)
 
-## Motivation
+## Why this exists
 
-In daily work, we constantly face: a cryptic error in the terminal, an email that needs polishing, docs in a foreign language. The usual workflow is: select text → switch to browser → open ChatGPT → paste → wait → copy response → switch back → paste. That's six context switches for one fix.
+Fixing a terminal error, translating documentation, or polishing an email often means leaving the current app, opening a chat window, pasting text, waiting, and copying the result back.
 
-What if you could just: select text, press one key, done?
+AI Text Optimizer keeps that workflow inside the app you are already using:
 
-That's this tool. It's not "yet another AI wrapper" — it's a **system-level productivity utility**: tray-resident, globally hotkeyed, works in any application.
+1. Select text in any Windows application.
+2. Press `Ctrl+Shift+Q` (customizable).
+3. Review the AI result and copy it with one click.
 
-## Design
+The app detects the foreground application, estimates whether the selection is code, an error, a log, configuration, or plain text, and chooses an appropriate prompt template. You remain in control of the template and AI provider.
 
-### Workflow
+## Features
 
-```
-Select text → Ctrl+Shift+Q → AI analyzes → result window → one-click copy
-```
+- Global, customizable Windows hotkey.
+- Context-aware prompt routing for code, errors, logs, configuration, translation, and summaries.
+- Ten built-in templates plus editable custom templates.
+- OpenAI-compatible APIs, Anthropic-compatible requests, and local Ollama support.
+- Chinese and English interface.
+- Clipboard restoration: the clipboard content that existed before selection capture is restored.
+- Tray-based settings for provider, endpoint, model, API key, hotkey, and language.
+- HTTPS enforcement for remote custom endpoints; HTTP is accepted only for loopback services.
 
-You never leave the current application.
-
-### Context Awareness
-
-Before sending text to AI, the analyzer extracts:
-
-| Dimension | What it detects | Used for |
-|-----------|----------------|----------|
-| Source app | Foreground window (VS Code, Chrome, Terminal, etc.) | Tailored prompt generation |
-| Content type | Error, code, log, config, or plain text | Automatic template selection |
-| Language | Python, JS, Java, Go, Rust, SQL, and more | Informing AI of language context |
-
-This means you don't need to manually pick a template — the tool figures out what kind of text you selected.
-
-### Multi-Provider Support
-
-| Provider | Models | Notes |
-|----------|--------|-------|
-| OpenAI | GPT-4, GPT-4-turbo, GPT-3.5-turbo | OpenAI API compatible |
-| DeepSeek | deepseek-chat, deepseek-coder | Cost-effective |
-| Zhipu AI | GLM-4, GLM-4-flash | Chinese LLM |
-| Moonshot | moonshot-v1-8k/32k/128k | Ultra-long context |
-| Qwen | qwen-turbo, qwen-plus, qwen-max | Alibaba Cloud |
-| Claude | claude-3-opus/sonnet | Anthropic |
-| Ollama | llama3, codellama, mistral | Local, free |
-
-Any service compatible with OpenAI's `/v1/chat/completions` endpoint works. Remote custom services must use HTTPS; HTTP is allowed only for loopback hosts.
-
-### Built-in Templates
-
-10 preset templates covering common dev tasks:
-
-| Template | Category | Use case |
-|----------|----------|----------|
-| Code Fix | Code | Analyze errors, provide fix |
-| Code Optimize | Code | Improve performance & readability |
-| Code Explain | Code | Explain what code does |
-| Code Review | Code | Review quality, suggest improvements |
-| Bug Debug | Debug | Systematic issue tracing |
-| Stack Trace | Debug | Parse stack traces, find root cause |
-| Config Fix | Config | Diagnose & fix configuration |
-| Log Analyze | Log | Extract insights from logs |
-| Translate | General | Translate selected text |
-| Summarize | General | Extract key points |
-
-Custom templates can be added/edited/deleted via the UI, with `{text}`, `{source}`, `{language}` variables.
-
-## Quick Start
+## Install the Windows release
 
 ### Requirements
 
-- Windows 10/11
-- Python 3.10+
+- Windows 10 or Windows 11.
+- An API key for a supported cloud provider, or a local OpenAI-compatible service such as Ollama.
 
-### Install
+### Steps
 
-```bash
-git clone https://github.com/yourusername/ai-text-optimizer.git
+1. Open [the latest release](https://github.com/owdf/ai-text-optimizer/releases/latest).
+2. Download `AITextOptimizer-Windows-x64.zip`.
+3. Optionally verify the archive against `SHA256SUMS.txt`.
+4. Extract the archive and run `AITextOptimizer.exe`.
+5. Right-click the tray icon, open **Settings**, and configure your provider.
+
+The executable is not code-signed yet, so Windows SmartScreen may show an “unknown publisher” warning. Verify that the file came from this repository and check its SHA-256 checksum before running it.
+
+Packaged builds store configuration, custom templates, and logs under `%LOCALAPPDATA%\AITextOptimizer`. If a `config.json` already exists beside the executable, it is used as a portable configuration instead.
+
+## Run from source
+
+```powershell
+git clone https://github.com/owdf/ai-text-optimizer.git
 cd ai-text-optimizer
-pip install -r requirements.txt
+py -3.10 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item config.example.json config.json
+python main.py
 ```
 
-### Configure
+Python 3.10 or newer is supported. The application itself targets Windows because selection capture, active-window detection, and global input handling use Windows APIs.
 
-```bash
-cp config.example.json config.json
-```
+## Provider configuration
 
-Edit `config.json`:
+Use the tray **Settings** window whenever possible. The equivalent JSON structure is:
 
 ```json
 {
@@ -121,86 +81,71 @@ Edit `config.json`:
     "provider": "openai",
     "api_key": "your-api-key",
     "base_url": "https://api.openai.com/v1",
-    "model": "gpt-4"
+    "model": "gpt-4o",
+    "max_tokens": 2000,
+    "temperature": 0.7
   },
   "hotkey": {
-    "trigger": "ctrl+shift+q"
+    "trigger": "ctrl+shift+q",
+    "enabled": true
   }
 }
 ```
 
-Packaged builds store configuration, custom templates, and logs in `%LOCALAPPDATA%\AITextOptimizer`. An existing `config.json` beside the executable is treated as a portable configuration.
+The `openai` provider works with services implementing `/v1/chat/completions`. Choose `anthropic` for the Anthropic Messages API. Loopback endpoints such as `http://localhost:11434/v1` can be used without an API key.
 
-Or right-click the tray icon → Settings after launch.
+## Privacy and security
 
-### Run
+- Only text captured after the configured hotkey is pressed is sent for processing.
+- If selection capture does not produce new clipboard content, the previous clipboard value is not submitted.
+- Selected text is sent to the provider configured by the user; review that provider's data policy before sending confidential material.
+- API keys are stored in the local application configuration and are never committed by the project.
+- Remote custom endpoints must use HTTPS. Plain HTTP is limited to loopback hosts for local models.
 
-```bash
-python main.py
+## Development
+
+Run the complete test suite:
+
+```powershell
+python -m pip install pytest -r requirements.txt
+python -m pytest -q
 ```
 
-A tray icon appears. Press `Ctrl+Shift+Q` to start using.
+Build the standalone executable:
 
-### Build EXE
-
-```bash
-pip install pyinstaller
+```powershell
+python -m pip install pyinstaller
 python build.py
 ```
 
-Output: `dist/AI文本优化器.exe`
+The output is `dist/AITextOptimizer.exe`. CI runs the tests on Python 3.10 and 3.12 and performs a real Windows packaging smoke test. Pushing a `v*` tag builds the release archive and publishes its checksum.
 
-## Structure
+## Project structure
 
-```
-ai-text-optimizer/
-├── main.py                   # Entry point, lifecycle management
-├── config.py                 # JSON config with dot-path access
-├── ai_service.py             # AI adapter (OpenAI + Claude protocols)
-├── prompt_templates.py       # Template manager (built-in + custom)
-├── context_analyzer.py       # Window detection + text classification
-├── clipboard.py              # Clipboard ops (Ctrl+C simulation)
-├── hotkey.py                 # Global hotkey listener (dynamic keys)
-├── text_cleaner.py           # Markdown → plain text
-├── language.py               # zh/en bilingual support
-├── logger.py                 # Structured logging (console + file)
-├── icons.py                  # Programmatic icon generation (Pillow)
-├── build.py                  # PyInstaller build script
-├── tests/                    # Unit tests (pytest, 29 cases)
-└── ui/
-    ├── floating_window.py    # AI result popup
-    ├── settings_window.py    # Settings panel
-    ├── hotkey_window.py      # "Press to set" hotkey recorder
-    ├── template_window.py    # Template browser & editor
-    └── tray.py               # System tray icon & menu
+```text
+main.py                 Application lifecycle and UI coordination
+ai_service.py           OpenAI-compatible and Anthropic API adapters
+context_analyzer.py     Foreground-window and text classification heuristics
+clipboard.py            Selection capture and clipboard restoration
+hotkey.py               Global hotkey listener
+prompt_templates.py     Built-in and custom prompt templates
+config.py               Persistent settings
+ui/                     Tray, result, settings, hotkey, and template windows
+tests/                  Regression and unit tests
+build.py                PyInstaller build entry point
 ```
 
-## FAQ
+## Known limitations
 
-**Q: Hotkey not working?**
+- Windows only.
+- Responses are currently displayed after the provider finishes; token streaming is not yet implemented.
+- A processing request must finish before another hotkey request can start.
+- Context classification is heuristic and can be overridden by selecting a template manually.
 
-Another app may be using the same combo (e.g., screenshot tools). Right-click tray → Hotkey settings → record a new combo.
+## Contributing
 
-**Q: AI returns Markdown formatting?**
-
-The built-in cleaner strips bold markers, code fences, headings, and link syntax. If artifacts remain, file an issue.
-
-**Q: Which AI services are supported?**
-
-Any OpenAI-compatible API (`/v1/chat/completions`) and Anthropic Claude API. Local Ollama works too.
-
-**Q: How to switch between Chinese and English?**
-
-Right-click tray icon → Language → select. Auto-detects system language on first run.
+Issues and pull requests are welcome. For a bug report, include the Windows version, Python or release version, provider type, steps to reproduce, and relevant logs with secrets removed.
 
 ## License
 
-MIT License
-
-## Disclaimer
-
-You need your own API key for AI services. Keep it safe — source-tree `config.json` is gitignored. Never commit API keys to public repositories. For privacy, existing clipboard content is never uploaded when no text is selected.
-
----
-
-If this tool helps you, give it a star ⭐
+[MIT](LICENSE) © 2026 Dongfang Wang.
