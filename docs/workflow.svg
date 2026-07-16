@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="260" viewBox="0 0 1200 260" role="img" aria-labelledby="title desc">
   <title id="title">AI Text Optimizer workflow</title>
-  <desc id="desc">Select text, press the global hotkey, detect context, call the configured AI provider, and copy the result.</desc>
+  <desc id="desc">Select text, press the global hotkey, detect technical context, protect sensitive data locally, ask the configured AI provider, then refine or copy the result.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#111827"/>
@@ -11,38 +11,44 @@
     </filter>
   </defs>
   <rect width="1200" height="260" rx="28" fill="url(#bg)"/>
-  <text x="56" y="52" fill="#f9fafb" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">One hotkey. Any Windows app. Your AI provider.</text>
+  <text x="40" y="52" fill="#f9fafb" font-family="Segoe UI, Arial, sans-serif" font-size="25" font-weight="700">One hotkey. Technical context. Local privacy. Your AI provider.</text>
   <g font-family="Segoe UI, Arial, sans-serif" text-anchor="middle" filter="url(#shadow)">
-    <g transform="translate(48 92)">
-      <rect width="184" height="106" rx="18" fill="#0f766e"/>
-      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">1. Select text</text>
-      <text x="92" y="76" fill="#ccfbf1" font-size="14">Editor · browser · terminal</text>
+    <g transform="translate(30 92)">
+      <rect width="165" height="106" rx="18" fill="#0f766e"/>
+      <text x="82.5" y="47" fill="#fff" font-size="18" font-weight="700">1. Select text</text>
+      <text x="82.5" y="76" fill="#ccfbf1" font-size="13">Any Windows app</text>
     </g>
-    <g transform="translate(278 92)">
-      <rect width="184" height="106" rx="18" fill="#1d4ed8"/>
-      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">2. Press hotkey</text>
-      <text x="92" y="76" fill="#dbeafe" font-size="14">Ctrl + Shift + Q</text>
+    <g transform="translate(225 92)">
+      <rect width="165" height="106" rx="18" fill="#1d4ed8"/>
+      <text x="82.5" y="47" fill="#fff" font-size="18" font-weight="700">2. Press hotkey</text>
+      <text x="82.5" y="76" fill="#dbeafe" font-size="13">Ctrl + Shift + Q</text>
     </g>
-    <g transform="translate(508 92)">
-      <rect width="184" height="106" rx="18" fill="#7c3aed"/>
-      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">3. Detect context</text>
-      <text x="92" y="76" fill="#ede9fe" font-size="14">App · content · language</text>
+    <g transform="translate(420 92)">
+      <rect width="165" height="106" rx="18" fill="#7c3aed"/>
+      <text x="82.5" y="47" fill="#fff" font-size="18" font-weight="700">3. Detect context</text>
+      <text x="82.5" y="76" fill="#ede9fe" font-size="13">Code · logs · config</text>
     </g>
-    <g transform="translate(738 92)">
-      <rect width="184" height="106" rx="18" fill="#b45309"/>
-      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">4. Ask your AI</text>
-      <text x="92" y="76" fill="#fef3c7" font-size="14">Cloud API or local Ollama</text>
+    <g transform="translate(615 92)">
+      <rect width="165" height="106" rx="18" fill="#047857"/>
+      <text x="82.5" y="47" fill="#fff" font-size="18" font-weight="700">4. Protect locally</text>
+      <text x="82.5" y="76" fill="#d1fae5" font-size="13">Keys · tokens · identity</text>
     </g>
-    <g transform="translate(968 92)">
-      <rect width="184" height="106" rx="18" fill="#be123c"/>
-      <text x="92" y="47" fill="#fff" font-size="20" font-weight="700">5. Copy result</text>
-      <text x="92" y="76" fill="#ffe4e6" font-size="14">Stay in the current app</text>
+    <g transform="translate(810 92)">
+      <rect width="165" height="106" rx="18" fill="#b45309"/>
+      <text x="82.5" y="47" fill="#fff" font-size="18" font-weight="700">5. Ask your AI</text>
+      <text x="82.5" y="76" fill="#fef3c7" font-size="13">Cloud API or Ollama</text>
+    </g>
+    <g transform="translate(1005 92)">
+      <rect width="165" height="106" rx="18" fill="#be123c"/>
+      <text x="82.5" y="47" fill="#fff" font-size="18" font-weight="700">6. Refine or copy</text>
+      <text x="82.5" y="76" fill="#ffe4e6" font-size="13">Shorter · clearer · actions</text>
     </g>
   </g>
   <g fill="#94a3b8">
-    <path d="M242 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
-    <path d="M472 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
-    <path d="M702 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
-    <path d="M932 145h24l-8-8 5-5 17 17-17 17-5-5 8-8h-24z"/>
+    <path d="M198 145h15l-7-7 5-5 16 16-16 16-5-5 7-7h-15z"/>
+    <path d="M393 145h15l-7-7 5-5 16 16-16 16-5-5 7-7h-15z"/>
+    <path d="M588 145h15l-7-7 5-5 16 16-16 16-5-5 7-7h-15z"/>
+    <path d="M783 145h15l-7-7 5-5 16 16-16 16-5-5 7-7h-15z"/>
+    <path d="M978 145h15l-7-7 5-5 16 16-16 16-5-5 7-7h-15z"/>
   </g>
 </svg>
