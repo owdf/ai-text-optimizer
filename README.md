@@ -27,6 +27,16 @@ AI Text Optimizer keeps that workflow inside the app you are already using:
 
 The app detects the foreground application, estimates whether the selection is code, an error, a log, configuration, or plain text, and chooses an appropriate prompt template. You remain in control of the template and AI provider.
 
+## What makes it different
+
+Most rewriting tools are browser editors built around tone presets. AI Text Optimizer is a local-first technical workflow layer:
+
+- **Privacy Shield before the request:** high-confidence credentials, authorization tokens, email addresses, and Windows usernames are replaced locally before text reaches the configured provider. Surviving placeholders are restored only in the local result.
+- **Technical context, not generic paraphrasing:** the app routes code, stack traces, logs, and configuration to purpose-built prompts using the foreground application as context.
+- **Refine without starting over:** turn the visible result into a shorter version, a clearer version, or a prioritized action plan without copying it into another chat.
+- **Inspectable change metrics:** every result shows a deterministic local change percentage and character delta. No second AI call is used for this calculation.
+- **Bring your own model:** use a compatible cloud API or a loopback model such as Ollama; the project does not require an account or proxy requests through its own server.
+
 ## Features
 
 - Global, customizable Windows hotkey.
@@ -34,6 +44,9 @@ The app detects the foreground application, estimates whether the selection is c
 - Ten built-in templates plus editable custom templates.
 - OpenAI-compatible APIs, Anthropic-compatible requests, and local Ollama support.
 - Chinese and English interface.
+- Default-on local Privacy Shield with a visible protected-item count.
+- One-click **Shorter**, **Clearer**, and **Action plan** follow-up refinements.
+- Local before/after change metrics.
 - Clipboard restoration: the clipboard content that existed before selection capture is restored.
 - Tray-based settings for provider, endpoint, model, API key, hotkey, and language.
 - HTTPS enforcement for remote custom endpoints; HTTP is accepted only for loopback services.
@@ -88,6 +101,9 @@ Use the tray **Settings** window whenever possible. The equivalent JSON structur
   "hotkey": {
     "trigger": "ctrl+shift+q",
     "enabled": true
+  },
+  "privacy": {
+    "enabled": true
   }
 }
 ```
@@ -98,6 +114,8 @@ The `openai` provider works with services implementing `/v1/chat/completions`. C
 
 - Only text captured after the configured hotkey is pressed is sent for processing.
 - If selection capture does not produce new clipboard content, the previous clipboard value is not submitted.
+- Privacy Shield is enabled by default. It detects high-confidence secrets and identifiers locally, replaces them with typed placeholders for each outbound request, and restores exact placeholders in the local response.
+- Privacy Shield is a safety layer, not a complete data-loss-prevention system. Review unusually sensitive selections and use a local model when text must never leave the device.
 - Selected text is sent to the provider configured by the user; review that provider's data policy before sending confidential material.
 - API keys are stored in the local application configuration and are never committed by the project.
 - Remote custom endpoints must use HTTPS. Plain HTTP is limited to loopback hosts for local models.
@@ -126,6 +144,8 @@ The output is `dist/AITextOptimizer.exe`. CI runs the tests on Python 3.10 and 3
 main.py                 Application lifecycle and UI coordination
 ai_service.py           OpenAI-compatible and Anthropic API adapters
 context_analyzer.py     Foreground-window and text classification heuristics
+privacy_shield.py       Local credential and identifier redaction
+change_metrics.py       Deterministic before/after metrics
 clipboard.py            Selection capture and clipboard restoration
 hotkey.py               Global hotkey listener
 prompt_templates.py     Built-in and custom prompt templates

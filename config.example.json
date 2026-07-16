@@ -37,6 +37,9 @@
     "language": "auto",
     "enable_logging": false
   },
+  "privacy": {
+    "enabled": true
+  },
   "prompts": {
     "extra": ""
   }

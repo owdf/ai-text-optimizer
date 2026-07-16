@@ -56,6 +56,7 @@ class SettingsWindow:
         self._format_seg = None
         self._model_entry = None
         self._lang_var = None
+        self._privacy_var = None
         self._prompt_text = None
         self._status_label = None
         self._test_btn = None
@@ -121,6 +122,7 @@ class SettingsWindow:
         scroll.pack(fill="both", expand=True, padx=Size.WINDOW_PAD, pady=(Space.MD, Space.SM))
 
         self._build_ai_section(scroll)
+        self._build_privacy_section(scroll)
         self._build_hotkey_section(scroll)
         self._build_lang_section(scroll)
         self._build_prompt_section(scroll)
@@ -225,6 +227,23 @@ class SettingsWindow:
         self._create_label_entry(card, t("hotkey_key"), "hotkey")
         make_hint(card, "Format: ctrl+shift+q · alt+a · f2")
         # bottom padding
+        ctk.CTkFrame(card, fg_color="transparent", height=Space.SM).pack()
+
+    def _build_privacy_section(self, parent) -> None:
+        card = make_card(parent, fill="x", pady=(0, Space.MD))
+        make_section_header(card, t("settings_privacy"), Colors.SUCCESS)
+        self._privacy_var = ctk.BooleanVar(value=True)
+        switch = ctk.CTkSwitch(
+            card,
+            text=t("settings_privacy_enabled"),
+            variable=self._privacy_var,
+            onvalue=True,
+            offvalue=False,
+            font=font(Type.BODY),
+            progress_color=Colors.SUCCESS,
+        )
+        switch.pack(fill="x", padx=Size.SECTION_PAD_X, pady=(Space.SM, Space.XS))
+        make_hint(card, t("settings_privacy_hint"))
         ctk.CTkFrame(card, fg_color="transparent", height=Space.SM).pack()
 
     def _build_lang_section(self, parent) -> None:
@@ -401,6 +420,8 @@ class SettingsWindow:
 
         if self._lang_var is not None:
             self._lang_var.set(self.lang_mgr.get_lang_name(self.lang_mgr.get_lang()))
+        if self._privacy_var is not None:
+            self._privacy_var.set(bool(self.config.get("privacy.enabled", True)))
 
     def _save_config(self):
         if "api_key" in self._entries:
@@ -418,6 +439,9 @@ class SettingsWindow:
         if self._prompt_text is not None:
             extra = self._prompt_text.get("1.0", "end").strip()
             self.config.set_prompt("extra", extra)
+
+        if self._privacy_var is not None:
+            self.config.set("privacy.enabled", bool(self._privacy_var.get()))
 
         langs = self.lang_mgr.get_available_langs()
         lang_names = [self.lang_mgr.get_lang_name(l) for l in langs]

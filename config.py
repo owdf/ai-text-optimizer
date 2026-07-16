@@ -89,6 +89,9 @@ class Config:
                 "language": "auto",
                 "enable_logging": False
             },
+            "privacy": {
+                "enabled": True
+            },
             "prompts": {
                 "extra": ""
             }
